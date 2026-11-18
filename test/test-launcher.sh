@@ -2,9 +2,11 @@
 # SPDX-FileCopyrightText: 2026 Jeff Morrison
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Runs the launcher against fake_bmc.py and checks what it sends, keeps and
-# prints: the login body, the session headers, the jars, the viewer's command
-# line, logout exactly once, the error paths, legacy TLS and --diagnose.
+# Installs MegaRAC Console with install.sh into a throwaway home, runs it against
+# fake_bmc.py, and checks what it sends, keeps and prints: the login body, the
+# session headers, the jars, the viewer's command line, logout exactly once, the
+# error paths, legacy TLS and --diagnose. On macOS this uses the real Keychain;
+# the entries it makes are deleted at the end.
 #   test/test-launcher.sh [JAVA_HOME]     a Java 8 JDK; default $JAVA_HOME
 # Needs python3, openssl, curl and a C compiler.
 set -euo pipefail
@@ -14,23 +16,32 @@ ROOT="$(dirname "$HERE")"
 JH="${1:-${JAVA_HOME:?usage: $0 [JAVA_HOME of a Java 8 JDK]}}"
 T="$(mktemp -d)"
 BMC_PID=
-trap '[ -z "$BMC_PID" ] || kill "$BMC_PID" 2>/dev/null; rm -rf "$T"' EXIT
+HOSTS=()
+# shellcheck disable=SC2317 # called by the EXIT trap
+cleanup() {
+  [ -z "$BMC_PID" ] || kill "$BMC_PID" 2>/dev/null
+  if [ "$(uname)" = Darwin ]; then
+    for h in "${HOSTS[@]}"; do security delete-generic-password -s "megarac-console:$h" >/dev/null 2>&1 || true; done
+  fi
+  rm -rf "$T"
+}
+trap cleanup EXIT
 
 # Both JVMs, the launcher and the viewer, get these: no display, and a home and
 # preferences that are thrown away. Nothing the host machine has set leaks in.
 unset JAVA_TOOL_OPTIONS _JAVA_OPTIONS XDG_CACHE_HOME XDG_STATE_HOME
-mkdir -p "$T/home" "$T/app/classes" "$T/app/lib" "$T/stubs" "$T/served"
+mkdir -p "$T/home" "$T/stubs" "$T/served"
 
-# The launcher as installed: classes, Fit.java and the legacy settings beside
-# them, and media.c under the three names the viewer loads.
-"$JH/bin/javac" -nowarn -d "$T/app/classes" "$ROOT/src/MegaracConsole.java"
-cp "$ROOT/src/Fit.java" "$ROOT/src/legacy-tls.security" "$T/app/"
-md="$(dirname "$(find "$JH/include" -name jni_md.h | head -1)")"
-if [ "$(uname)" = Darwin ]; then ext=jnilib shared=-dynamiclib; else ext=so shared="-shared -fPIC"; fi
-# shellcheck disable=SC2086 # $shared is two flags on Linux
-cc -O2 $shared -I"$JH/include" -I"$md" -o "$T/app/lib/libjavacdromwrapper.$ext" "$ROOT/src/media.c"
-cp "$T/app/lib/libjavacdromwrapper.$ext" "$T/app/lib/libjavafloppywrapper.$ext"
-cp "$T/app/lib/libjavacdromwrapper.$ext" "$T/app/lib/libjavaharddiskwrapper.$ext"
+# Installed the way a person would, into the throwaway home.
+if [ "$(uname)" = Darwin ]; then
+  HOME="$T/home" JAVA_HOME="$JH" MEGARAC_APPS="$T/Applications" sh "$ROOT/install.sh" > "$T/install.out"
+  APP="$T/Applications/MegaRAC Console.app/Contents/Resources"
+  CACHE="$T/home/Library/Caches/megarac-console" LOG="$T/home/Library/Logs/megarac-console.log"
+else
+  HOME="$T/home" JAVA_HOME="$JH" sh "$ROOT/install.sh" > "$T/install.out"
+  APP="$T/home/.local/share/megarac-console"
+  CACHE="$T/home/.cache/megarac-console" LOG="$T/home/.local/state/megarac-console/megarac-console.log"
+fi
 
 # What the fake BMC serves: the stub viewer, a second jar, and native jars to list.
 mkdir -p "$T/served/full" "$T/served/nofit"
@@ -49,7 +60,6 @@ export JAVA_TOOL_OPTIONS="-Djava.awt.headless=true -Duser.home=$T/home -Djava.ut
 
 PASSWORD="$(python3 -c 'print("pa ss&=+%'"'"'*~é")')"
 SECRETS=(CookieA1b2C3d4E5f6G7h8 CsrfZ9y8X7w6V5 TokenQ1w2E3r4T5y6U7i8 "$PASSWORD")
-LOG="$HOME/.local/state/megarac-console/megarac-console.log"
 FAILED=0
 
 start_bmc() { # <served set> [fake_bmc options...]
@@ -59,13 +69,14 @@ start_bmc() { # <served set> [fake_bmc options...]
   BMC_PID=$!
   for _ in $(seq 100); do [ -s "$T/port" ] && break; sleep 0.05; done
   HOST="127.0.0.1:$(cat "$T/port")"
+  HOSTS+=("$HOST")
 }
 stop_bmc() { [ -z "$BMC_PID" ] || { kill "$BMC_PID" 2>/dev/null; wait "$BMC_PID" 2>/dev/null || true; BMC_PID=; }; }
 
 launch() { # <stdin> [launcher arguments...]: sets RC; output in $T/out and $T/err
   rm -f "$STUB_ARGS_FILE"
   set +e
-  printf '%s' "$1" | BMC_HOST="${BMC_HOST-$HOST}" "$JH/bin/java" -cp "$T/app/classes" MegaracConsole "${@:2}" \
+  printf '%s' "$1" | BMC_HOST="${BMC_HOST-$HOST}" "$JH/bin/java" -cp "$APP/classes" MegaracConsole "${@:2}" \
     >"$T/out" 2>"$T/err"
   RC=$?
   set -e
@@ -96,6 +107,11 @@ login="admin
 $PASSWORD
 "
 
+# ---- The install.
+check "install: says so" grep -q '^installed ' "$T/install.out"
+check "install: media library under all three names" \
+  bash -c "ls '$APP'/lib/libjava{cdrom,floppy,harddisk}wrapper.* >/dev/null"
+
 # ---- A normal launch.
 start_bmc full
 launch "$login"
@@ -108,8 +124,8 @@ check "normal: login body byte-identical to curl's" [ "$(request /rpc/WEBSES/cre
 check "normal: launch file request carries the session cookie" \
   [ "$(request /Java/jviewer.jnlp cookie)" = "SessionCookie=CookieA1b2C3d4E5f6G7h8" ]
 check "normal: launch file request carries the CSRF token" [ "$(request /Java/jviewer.jnlp csrf)" = CsrfZ9y8X7w6V5 ]
-check "normal: both jars cached" test -f "$HOME/.cache/megarac-console/127.0.0.1_$(cat "$T/port")/JViewer-SOC.jar"
-check "normal: Fit compiled" test -f "$HOME/.cache/megarac-console/127.0.0.1_$(cat "$T/port")/classes/Fit.class"
+check "normal: both jars cached" test -f "$CACHE/127.0.0.1_$(cat "$T/port")/JViewer-SOC.jar"
+check "normal: Fit compiled" test -f "$CACHE/127.0.0.1_$(cat "$T/port")/classes/Fit.class"
 check "normal: viewer got exactly the launch file's arguments" diff <(expected_args) "$STUB_ARGS_FILE"
 check "normal: viewer loaded all three media libraries" [ "$(grep -c '^LOADED:' "$T/out")" = 3 ]
 check "normal: logged out once" [ "$(requests /rpc/WEBSES/logout.asp)" = 1 ]
@@ -124,7 +140,7 @@ check "exit code: logged out once" [ "$(requests /rpc/WEBSES/logout.asp)" = 1 ]
 # ---- Killing the launcher stops the viewer and logs out.
 start_bmc full
 rm -f "$STUB_ARGS_FILE"
-printf '%s' "$login" | BMC_HOST="$HOST" STUB_SLEEP=60 "$JH/bin/java" -cp "$T/app/classes" MegaracConsole \
+printf '%s' "$login" | BMC_HOST="$HOST" STUB_SLEEP=60 "$JH/bin/java" -cp "$APP/classes" MegaracConsole \
   >"$T/out" 2>"$T/err" &
 pid=$!
 for _ in $(seq 200); do grep -q '^PID:' "$T/out" 2>/dev/null && break; sleep 0.05; done
@@ -191,6 +207,16 @@ BMC_HOST='' launch "$login"
 check "first run: the address is remembered" [ "$RC" = 0 ]
 BMC_HOST='' launch "" forget
 check "forget: forgets the address" grep -q "^forgot megarac-console:$HOST" "$T/out"
+
+# ---- Installing again updates in place; --uninstall removes it.
+if [ "$(uname)" = Darwin ]; then
+  again() { HOME="$T/home" JAVA_HOME="$JH" MEGARAC_APPS="$T/Applications" sh "$ROOT/install.sh" "$@" >/dev/null; }
+else
+  again() { HOME="$T/home" JAVA_HOME="$JH" sh "$ROOT/install.sh" "$@" >/dev/null; }
+fi
+check "install: again updates in place" again
+again --uninstall
+check "install: --uninstall removes it" test ! -e "$APP"
 
 stop_bmc
 [ "$FAILED" = 0 ] && echo "all launcher tests passed"
