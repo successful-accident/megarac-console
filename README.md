@@ -8,39 +8,200 @@ current browser or Java will run. MegaRAC Console does the launch itself:
 1. It logs in to the BMC's web API.
 2. It fetches the launch file and the viewer jars the BMC serves.
 3. It runs the viewer on Java 8, with fixes:
-   - the picture scales to the window, and the window reopens at its last size
-   - Pause then Resume redraws the whole screen
-   - an ISO image can be mounted as the server's virtual CD at launch
-   - Caps Lock takes one press on macOS
+   - The picture scales to the window, and the window reopens at its last size.
+   - Pause then Resume redraws the whole screen.
+   - An ISO image can be mounted as the server's virtual CD at launch.
+   - Caps Lock takes one press on macOS.
 4. Where the BMC's own media libraries can't load (Apple silicon, Linux on ARM,
    FreeBSD), its replacement library `src/media.c` mounts ISO images instead.
 
-> **Status: work in progress.** The launcher and its tests are here. Installers
-> for each OS and the rest of this manual come next.
+It suits BMCs whose web interface has a "Launch KVM" or "Java console" button
+that downloads a `jviewer.jnlp` file. Newer MegaRAC SP-X firmware has an HTML5
+console in the browser and doesn't need this.
 
-## Try it: the diagnosis
+## Install
 
-`--diagnose` checks that this computer can talk to your BMC, then logs out. It
-prints the TLS version, whether the login works, the launch file with every
-secret removed, and the jars and libraries the BMC offers. It needs a Java 8 JDK
-(on macOS: `brew install --cask zulu@8`).
+Every platform needs a **Java 8 JDK**: not a newer Java, which the viewer
+predates, and not a JRE, since the launcher compiles a small wrapper against
+your BMC's viewer.
 
+### macOS (Apple silicon or Intel)
+```sh
+brew install --cask zulu@8
+xcode-select --install          # only if there is no C compiler yet
+git clone https://github.com/successful-accident/megarac-console
+cd megarac-console && ./install.sh
+```
+This installs `/Applications/MegaRAC Console.app`.
+
+### Linux
+Install a Java 8 JDK with its desktop libraries (not the "headless" package), a C
+compiler, and optionally `secret-tool` to keep the login:
+
+| Distribution | Packages |
+|---|---|
+| Ubuntu | `openjdk-8-jdk gcc libsecret-tools` |
+| Debian 12 and later | Temurin 8 from [Adoptium's apt repository](https://adoptium.net/installation/linux/) (`temurin-8-jdk`), plus `gcc libsecret-tools` |
+| Fedora | Temurin 8 from Adoptium's rpm repository, plus `gcc libsecret` |
+| Arch | `jdk8-openjdk gcc libsecret` |
+
+Then:
 ```sh
 git clone https://github.com/successful-accident/megarac-console
-cd megarac-console
-mkdir -p build/classes
-javac -d build/classes src/MegaracConsole.java
-cp src/Fit.java src/legacy-tls.security build/
-BMC_HOST=<your BMC's address> java -cp build/classes MegaracConsole --diagnose 2>&1
+cd megarac-console && ./install.sh
 ```
+This installs `~/.local/bin/megarac-console` and an application-menu entry.
 
-On macOS, put `"$(/usr/libexec/java_home -v 1.8)/bin/"` in front of `javac` and
-`java` if Java 8 is not your default.
+### FreeBSD
+```sh
+pkg install openjdk8 git libsecret
+git clone https://github.com/successful-accident/megarac-console
+cd megarac-console && ./install.sh
+```
+The C compiler is in the base system.
 
-The first run asks for the BMC user and password, and saves them in the
-system's credential store once the BMC accepts them: the macOS Keychain, the
-Secret Service (`secret-tool`) on Linux and FreeBSD, or the Windows account.
-`MegaracConsole forget` deletes them.
+### Windows
+```powershell
+winget install --id EclipseAdoptium.Temurin.8.JDK -e
+git clone https://github.com/successful-accident/megarac-console
+cd megarac-console
+powershell -ExecutionPolicy Bypass -File .\install.ps1
+```
+This adds **MegaRAC Console** to the Start menu. On ARM64 Windows the same x64
+JDK runs under emulation. Windows uses the BMC's own media libraries, so it needs
+no C compiler.
+
+To update on any platform, `git pull`, then run the installer again. To use a
+particular JDK, set `JAVA_HOME` (Windows: `-JavaHome <dir>`).
+
+## Use
+
+Open MegaRAC Console. The first run asks for the BMC's address, user and
+password. The login is saved after the BMC accepts it:
+- macOS: the Keychain.
+- Linux and FreeBSD: the Secret Service, via `secret-tool`. Without it, the
+  login is asked for every time.
+- Windows: a file encrypted for your Windows account (DPAPI).
+
+From a terminal:
+
+| Command | What it does |
+|---|---|
+| `megarac-console` | open the console |
+| `BMC_HOST=<address> megarac-console` | open a different BMC than the saved one |
+| `BMC_ISO=<image.iso> megarac-console` | mount that image as the server's virtual CD once video starts; the log shows how much the server has read |
+| `megarac-console --diagnose` | check TLS, the login and the launch file, then print a report with every secret removed; attach it to a bug report |
+| `megarac-console forget` | delete the saved login and address |
+
+On macOS, the command is `"/Applications/MegaRAC Console.app/Contents/MacOS/megarac-console"`.
+On Windows, run `powershell -ExecutionPolicy Bypass -File "$env:LOCALAPPDATA\megarac-console\app\launch.ps1"`
+with `-Iso <image.iso>`, `-Diagnose` or `-Forget`. The viewer's own Media menu can also
+mount an image at any time.
+
+`MEGARAC_JAVA_OPTS` passes extra options to the viewer's Java, for example
+`-Dsun.java2d.uiScale=2` on a HiDPI Linux screen.
+
+## Where things are kept, and uninstalling
+
+| | macOS | Linux and FreeBSD | Windows |
+|---|---|---|---|
+| App | `/Applications/MegaRAC Console.app` | `~/.local/share/megarac-console`, `~/.local/bin/megarac-console`, `~/.local/share/applications/megarac-console.desktop` | `%LOCALAPPDATA%\megarac-console\app`, the Start-menu shortcut |
+| Viewer jars from the BMC | `~/Library/Caches/megarac-console` | `~/.cache/megarac-console` | `%LOCALAPPDATA%\megarac-console\cache` |
+| Log of the last run | `~/Library/Logs/megarac-console.log` | `~/.local/state/megarac-console/megarac-console.log` | `%LOCALAPPDATA%\megarac-console\megarac-console.log` |
+| Saved login | Keychain, `megarac-console:<address>` | Secret Service, `megarac-console:<address>` | `%LOCALAPPDATA%\megarac-console\login-<address>.txt` |
+| Address and window size | Java preferences, node `megarac-console` | `~/.java/.userPrefs/megarac-console` | registry, `HKCU\Software\JavaSoft\Prefs\megarac-console` |
+
+To uninstall:
+1. Run `forget` to delete the saved login.
+2. Run `./install.sh --uninstall` (Windows: `.\install.ps1 -Uninstall`).
+3. Delete the cache and log folders above.
+
+The log never contains the password, the session cookie, the CSRF token or the
+console token.
+
+## Troubleshooting
+
+- **Older BMCs speak only TLS 1.0 or 1.1, with old keys,** which Java 8 now
+  refuses. When the first connection fails, MegaRAC Console starts again with
+  `src/legacy-tls.security`, which allows them, and remembers that for the BMC.
+  The BMC's self-signed certificate is never checked.
+- **"does not compile against this viewer":** another firmware's viewer differs
+  from the one `src/Fit.java` was written for. The viewer then runs without Fit's
+  fixes. A `--diagnose` report in an issue helps make Fit work with it.
+- **FreeBSD:** the viewer was written for Windows, Linux and macOS. If it misbehaves,
+  try `MEGARAC_JAVA_OPTS=-Dos.name=Linux`.
+- **Linux on Wayland** needs XWayland. Java 8 ignores desktop scaling; use
+  `MEGARAC_JAVA_OPTS=-Dsun.java2d.uiScale=2`.
+- **The BMC allows only four or five web sessions.** MegaRAC Console always logs
+  out, including when the viewer crashes or the launcher is stopped. A session
+  leaked by something else times out on the BMC.
+
+## Platform status
+
+"CI" means built and tested against a fake BMC on GitHub's runners on every push.
+"BMC" means checked by hand against a real BMC.
+
+| Platform | Media library | Status |
+|---|---|---|
+| macOS, Apple silicon | `media.c` | CI. The predecessor app worked against a real BMC; this version not yet. |
+| macOS, Intel | `media.c` | CI |
+| Linux x86_64 and aarch64 | `media.c` | CI |
+| FreeBSD amd64 | `media.c` | builds; untested |
+| Windows x64 (ARM64 under emulation) | the BMC's own | CI |
+
+Not yet confirmed on any machine: the viewer's Full Screen mode. Not yet
+confirmed with `media.c` on a real BMC: typing, and booting the server from a
+mounted ISO. Mounting an ISO and reading it worked.
+
+## Tested hardware
+
+| Server | BMC firmware |
+|---|---|
+| Quanta D51B-2U | 3.83.00 (the last release) |
+
+Please open an issue with a `--diagnose` report for any other board, whether it
+works or not.
+
+## How it works
+
+The BMC's web API, as used here:
+1. `POST /rpc/WEBSES/create.asp` with the form fields `WEBVAR_USERNAME` and
+   `WEBVAR_PASSWORD`. The reply is JavaScript, not JSON, holding
+   `'SESSION_COOKIE' : '…'` and, on newer firmware, `'CSRFTOKEN' : '…'`. A cookie
+   starting with `Failure` means the login was refused.
+2. Every later request sends `Cookie: SessionCookie=<cookie>` and the header
+   `CSRFTOKEN: <token>`.
+3. `GET /Java/jviewer.jnlp?EXTRNIP=<address>&JNLPSTR=JViewer`. Its `<argument>`
+   elements are the viewer's command line, including a one-time console token.
+   Its `<jar>` elements name the viewer jars, under `/Java/release/`. Its
+   per-platform `<nativelib>` elements name the media libraries (`Win64.jar` for
+   Windows x64).
+4. `GET /rpc/WEBSES/logout.asp` when done.
+
+The console itself uses TCP port 7578; virtual media uses 5120, 5122 and 5123.
+
+The launcher (`src/MegaracConsole.java`) runs the viewer in a second Java process
+with `java.library.path` pointing at the media libraries, wrapped by
+`src/Fit.java`. `src/media.c` implements the three JNI libraries the viewer loads
+(`javacdromwrapper`, `javafloppywrapper`, `javaharddiskwrapper`). It is a
+line-for-line port of the Intel library's ISO-image code, and replies to the
+server byte for byte as that library does. Physical drives and floppy and
+hard-disk redirection are not supported.
+
+## Development
+
+```sh
+test/test-media.sh "$JAVA_HOME"      # media.c against the recorded replies
+test/test-launcher.sh "$JAVA_HOME"   # installs into a temporary home, runs against test/fake_bmc.py
+```
+`test/test-windows.ps1` is the Windows counterpart; CI runs all three
+(`.github/workflows/test.yml`).
+
+`test/expected.sha256` holds the replies `media.c` must give. On a Mac that still
+has Rosetta and an Intel Java 8, `test/test-media.sh --intel <Mac64.jar> <jar dir>`
+re-records them from AMI's Intel library, after checking that `media.c` matches it
+on both architectures. `--diagnose` saves `Mac64.jar` and the viewer jars in the
+cache's `diagnose` folder.
 
 ## License
 

@@ -383,6 +383,9 @@ public class MegaracConsole {
         List<String> cmd = new ArrayList<>(Collections.singletonList(java(WIN ? "javaw" : "java")));
         if (MAC) cmd.addAll(Arrays.asList("-Xdock:name=" + NAME, "-Xdock:icon=" + app.resolve("AppIcon.icns")));
         if (LEGACY) cmd.add("-Djava.security.properties=" + app.resolve("legacy-tls.security"));
+        // Extra options for the viewer's Java, such as -Dsun.java2d.uiScale=2 or -Dos.name=Linux.
+        String opts = System.getenv("MEGARAC_JAVA_OPTS");
+        if (opts != null && !opts.trim().isEmpty()) cmd.addAll(Arrays.asList(opts.trim().split("\\s+")));
         cmd.addAll(Arrays.asList("-Djava.library.path=" + lib, "-cp", join(cp), main));
         cmd.addAll(args);
         ProcessBuilder pb = new ProcessBuilder(cmd).redirectErrorStream(true);
@@ -453,7 +456,10 @@ public class MegaracConsole {
                 HttpsURLConnection c = open(path, 30);
                 out(r.group(1).trim() + ": " + path + ", HTTP " + c.getResponseCode());
                 if (c.getResponseCode() != 200) continue;
-                try (ZipInputStream z = new ZipInputStream(c.getInputStream())) {
+                // Kept beside the jars: test-media.sh --intel takes Mac64.jar from here.
+                Path saved = d.resolve(fileName(path));
+                Files.copy(c.getInputStream(), saved, StandardCopyOption.REPLACE_EXISTING);
+                try (ZipInputStream z = new ZipInputStream(Files.newInputStream(saved))) {
                     for (ZipEntry e; (e = z.getNextEntry()) != null; ) {
                         long size = 0;
                         for (byte[] b = new byte[8192]; ; ) {
