@@ -1,0 +1,12 @@
+# Build output, and the vendor's jars and libraries, which the BMC serves and
+# this repository never carries.
+build/
+*.class
+*.jar
+*.part
+*.jnilib
+*.dylib
+*.so
+*.dll
+.DS_Store
+Thumbs.db

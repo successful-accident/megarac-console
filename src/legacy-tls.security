@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2026 Jeff Morrison
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Java security settings for older BMCs, which may speak only TLS 1.0 or 1.1 and
+# offer old ciphers, small keys or old signatures. MegaRAC Console uses this file
+# only for a BMC whose TLS handshake failed with Java's defaults, and only in its
+# own two processes. It replaces these two lists from Java's java.security. The
+# BMC's certificate is never checked anyway: it is self-signed.
+jdk.tls.disabledAlgorithms=SSLv3, NULL, anon
+jdk.certpath.disabledAlgorithms=MD2
