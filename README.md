@@ -155,15 +155,13 @@ arguments.)
 
 | Platform | Media library | Status |
 |---|---|---|
-| macOS, Apple silicon | `media.c` | CI. The predecessor app worked against a real BMC; this version not yet. |
+| macOS, Apple silicon | `media.c` | CI, and BMC: the console, typing, and booting the server from a mounted ISO |
 | macOS, Intel | `media.c` | CI |
 | Linux x86_64 and aarch64 | `media.c` | CI |
 | FreeBSD amd64 | `media.c` | builds; untested |
 | Windows x64 (ARM64 under emulation) | the BMC's own | CI |
 
-Not yet confirmed on any machine: the viewer's Full Screen mode. Not yet
-confirmed with `media.c` on a real BMC: typing, and booting the server from a
-mounted ISO. Mounting an ISO and reading it worked.
+Not yet confirmed on any machine: the viewer's Full Screen mode.
 
 ## Tested hardware
 
