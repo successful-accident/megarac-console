@@ -11,6 +11,10 @@ on:
   pull_request:
 permissions:
   contents: read
+# A newer push to the same branch cancels the run it supersedes.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   unix:
     name: ${{ matrix.os }}
@@ -25,8 +29,8 @@ jobs:
         with:
           distribution: zulu
           java-version: 8
-      # The runner's own keychain blocks every access, so give the Keychain checks an
-      # unlocked one, as a desktop Mac has.
+      # The Keychain checks get a fresh, unlocked default keychain, as a desktop Mac's
+      # login keychain is.
       - name: an unlocked keychain
         if: runner.os == 'macOS'
         run: |

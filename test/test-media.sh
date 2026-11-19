@@ -67,9 +67,10 @@ EOF
 }
 
 record() { # <tag> <source description>
-  {
+  { # REUSE-IgnoreStart: the header written below is not this file's own
     echo "# SPDX-FileCopyrightText: 2026 Jeff Morrison"
     echo "# SPDX-License-Identifier: GPL-3.0-or-later"
+    # REUSE-IgnoreEnd
     echo "#"
     echo "# What test-media.sh checks against: SHA-256 of each corpus image and script,"
     echo "# and of the CD library's replies to each script."
