@@ -40,6 +40,10 @@ jobs:
         with:
           distribution: zulu
           java-version: 8
-      - name: install.ps1 and the installed launcher against a fake BMC
+      # Windows PowerShell 5.1 runs the Start-menu shortcut; PowerShell 7 may run the installer.
+      - name: install.ps1 and the installed launcher against a fake BMC, Windows PowerShell 5.1
+        shell: powershell
+        run: test/test-windows.ps1
+      - name: the same, PowerShell 7
         shell: pwsh
         run: test/test-windows.ps1

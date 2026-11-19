@@ -12,8 +12,10 @@ current browser or Java will run. MegaRAC Console does the launch itself:
    - Pause then Resume redraws the whole screen.
    - An ISO image can be mounted as the server's virtual CD at launch.
    - Caps Lock takes one press on macOS.
-4. Where the BMC's own media libraries can't load (Apple silicon, Linux on ARM,
-   FreeBSD), its replacement library `src/media.c` mounts ISO images instead.
+4. Except on Windows, which uses the BMC's own media libraries, the viewer's media
+   libraries are replaced by `src/media.c`, built for your machine at install. The
+   BMC's own libraries don't load on Apple silicon, Linux on ARM or FreeBSD.
+   `media.c` mounts ISO images.
 
 It suits BMCs whose web interface has a "Launch KVM" or "Java console" button
 that downloads a `jviewer.jnlp` file. Newer MegaRAC SP-X firmware has an HTML5
@@ -58,7 +60,9 @@ pkg install openjdk8 git libsecret
 git clone https://github.com/successful-accident/megarac-console
 cd megarac-console && ./install.sh
 ```
-The C compiler is in the base system.
+The C compiler is in the base system. As the openjdk8 package says, Java needs
+`fdesc /dev/fd fdescfs rw 0 0` and `proc /proc procfs rw 0 0` in `/etc/fstab`,
+then `mount -a`.
 
 ### Windows
 ```powershell
@@ -71,8 +75,10 @@ This adds **MegaRAC Console** to the Start menu. On ARM64 Windows the same x64
 JDK runs under emulation. Windows uses the BMC's own media libraries, so it needs
 no C compiler.
 
-To update on any platform, `git pull`, then run the installer again. To use a
-particular JDK, set `JAVA_HOME` (Windows: `-JavaHome <dir>`).
+To update on any platform, `git pull`, then run the installer again. To install
+with a particular JDK, set `JAVA_HOME` (Windows: `-JavaHome <dir>`). The installed
+app looks for Java 8 at every launch: `MEGARAC_JAVA_HOME` if set, then the JDK it
+was installed with and the system's usual places.
 
 ## Use
 
@@ -112,12 +118,18 @@ mount an image at any time.
 | Address and window size | Java preferences, node `megarac-console` | `~/.java/.userPrefs/megarac-console` | registry, `HKCU\Software\JavaSoft\Prefs\megarac-console` |
 
 To uninstall:
-1. Run `forget` to delete the saved login.
+1. Delete each saved login: `BMC_HOST=<address> megarac-console forget` for every
+   BMC you used.
 2. Run `./install.sh --uninstall` (Windows: `.\install.ps1 -Uninstall`).
-3. Delete the cache and log folders above.
+3. Delete the cache, the log, and the address and window size from the table.
+   On Windows that means the whole `%LOCALAPPDATA%\megarac-console` folder, plus
+   `Remove-Item -Recurse HKCU:\Software\JavaSoft\Prefs\megarac-console`.
 
 The log never contains the password, the session cookie, the CSRF token or the
-console token.
+console token. The viewer gets the cookie and token on its input, not on its
+command line, so other users of the computer can't see them in a process list.
+(If Fit can't be used with your BMC's viewer, the viewer has to take them as
+arguments.)
 
 ## Troubleshooting
 
@@ -184,9 +196,9 @@ The launcher (`src/MegaracConsole.java`) runs the viewer in a second Java proces
 with `java.library.path` pointing at the media libraries, wrapped by
 `src/Fit.java`. `src/media.c` implements the three JNI libraries the viewer loads
 (`javacdromwrapper`, `javafloppywrapper`, `javaharddiskwrapper`). It is a
-line-for-line port of the Intel library's ISO-image code, and replies to the
-server byte for byte as that library does. Physical drives and floppy and
-hard-disk redirection are not supported.
+line-for-line port of the Intel library's ISO-image code, written to reply to the
+server byte for byte as that library does. With `media.c` (every OS but Windows),
+physical drives and floppy and hard-disk redirection are not supported.
 
 ## Development
 
@@ -197,10 +209,12 @@ test/test-launcher.sh "$JAVA_HOME"   # installs into a temporary home, runs agai
 `test/test-windows.ps1` is the Windows counterpart; CI runs all three
 (`.github/workflows/test.yml`).
 
-`test/expected.sha256` holds the replies `media.c` must give. On a Mac that still
-has Rosetta and an Intel Java 8, `test/test-media.sh --intel <Mac64.jar> <jar dir>`
-re-records them from AMI's Intel library, after checking that `media.c` matches it
-on both architectures. `--diagnose` saves `Mac64.jar` and the viewer jars in the
+`test/expected.sha256` holds the replies `media.c` must give. They were recorded
+from `media.c` itself and are not yet re-checked against AMI's Intel library;
+CI proves every platform's build agrees with them. On a Mac that still has Rosetta
+and an Intel Java 8, `test/test-media.sh --intel <Mac64.jar> <jar dir>` re-records
+them from the Intel library, after checking that `media.c` matches it on both
+architectures. `--diagnose` saves `Mac64.jar` and the viewer jars in the
 cache's `diagnose` folder.
 
 ## License

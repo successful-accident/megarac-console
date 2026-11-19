@@ -23,6 +23,7 @@ function Launch([string]$stdin, [string[]]$more) { # returns the exit code; outp
   $p = Start-Process "$jdk\bin\java.exe" -ArgumentList (@('-cp', "`"$app\classes`"", 'MegaracConsole') + $more) `
     -RedirectStandardInput "$t\stdin" -RedirectStandardOutput "$t\out" -RedirectStandardError "$t\err" `
     -NoNewWindow -PassThru
+  $null = $p.Handle # Windows PowerShell 5.1 reports no exit code without this
   $p.WaitForExit()
   $p.ExitCode
 }
@@ -60,13 +61,15 @@ Copy-Item "$t\served\Win64.jar" "$t\served\Mac64.jar"
 & openssl req -x509 -newkey rsa:2048 -nodes -days 2 -subj /CN=fake-bmc -keyout "$t\key.pem" -out "$t\cert.pem" 2>$null
 $bmc = Start-Process python -NoNewWindow -PassThru -ArgumentList "`"$PSScriptRoot\fake_bmc.py`"",
   "`"$t\port`"", "`"$t\cert.pem`"", "`"$t\key.pem`"", "`"$t\served`"", "`"$t\requests`""
-while (-not ((Test-Path "$t\port") -and (Get-Content "$t\port"))) { Start-Sleep -Milliseconds 100 }
+foreach ($i in 1..300) { if ((Test-Path "$t\port") -and (Get-Content "$t\port")) { break }; Start-Sleep -Milliseconds 100 }
+if (-not ((Test-Path "$t\port") -and (Get-Content "$t\port"))) { throw 'fake_bmc.py did not start' }
 $port = Get-Content "$t\port"
 $env:BMC_HOST = "127.0.0.1:$port"
-$env:JAVA_TOOL_OPTIONS = "-Djava.awt.headless=true -Duser.home=$t\home"
+# Its own preferences node: Windows keeps prefs in the registry, so user.home can't isolate them.
+$env:JAVA_TOOL_OPTIONS = "-Djava.awt.headless=true -Duser.home=$t\home -Dmegarac.prefs=megarac-console-test"
 $env:STUB_NO_LIBS = '1'
 $env:STUB_ARGS_FILE = "$t\args"
-Remove-Item -Recurse HKCU:\Software\JavaSoft\Prefs\megarac-console -ErrorAction Ignore
+Remove-Item -Recurse HKCU:\Software\JavaSoft\Prefs\megarac-console-test -ErrorAction Ignore
 $login = "admin`n$password`n"
 
 $code = Launch $login '--diagnose'
@@ -92,6 +95,6 @@ $code = Launch '' 'forget'
 Check 'forget: login deleted' (($code -eq 0) -and -not (Test-Path $saved))
 
 Stop-Process $bmc -ErrorAction Ignore
-Remove-Item -Recurse HKCU:\Software\JavaSoft\Prefs\megarac-console -ErrorAction Ignore
+Remove-Item -Recurse HKCU:\Software\JavaSoft\Prefs\megarac-console-test -ErrorAction Ignore
 if ($script:failed) { Get-Content "$t\err" | Select-Object -Last 20; exit 1 }
 'all Windows tests passed'

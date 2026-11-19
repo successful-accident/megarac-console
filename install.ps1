@@ -35,9 +35,12 @@ Copy-Item "$PSScriptRoot\src\Fit.java", "$PSScriptRoot\src\legacy-tls.security",
 Remove-Item -Recurse -Force $app -ErrorAction Ignore
 New-Item -ItemType Directory -Force (Split-Path $app) | Out-Null
 Move-Item $stage $app
+# launch.ps1 tries this JDK too, so one chosen with -JavaHome keeps working.
+Set-Content -LiteralPath "$app\jdk.txt" $jdk
 
 # The shortcut runs launch.ps1, which finds Java 8 at every launch, so updating
 # Java never breaks it. Minimized and hidden: no console window shows.
+New-Item -ItemType Directory -Force (Split-Path $link) | Out-Null
 $shortcut = (New-Object -ComObject WScript.Shell).CreateShortcut($link)
 $shortcut.TargetPath = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
 $shortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$app\launch.ps1`""

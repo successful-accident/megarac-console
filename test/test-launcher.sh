@@ -21,7 +21,10 @@ HOSTS=()
 cleanup() {
   [ -z "$BMC_PID" ] || kill "$BMC_PID" 2>/dev/null
   if [ "$(uname)" = Darwin ]; then
-    for h in "${HOSTS[@]}"; do security delete-generic-password -s "megarac-console:$h" >/dev/null 2>&1 || true; done
+    for h in ${HOSTS[@]+"${HOSTS[@]}"}; do
+      security delete-generic-password -s "megarac-console:$h" >/dev/null 2>&1 || true
+    done
+    defaults delete com.apple.java.util.prefs /megarac-console-test/ >/dev/null 2>&1 || true
   fi
   rm -rf "$T"
 }
@@ -56,7 +59,8 @@ openssl req -x509 -newkey rsa:2048 -nodes -days 2 -subj /CN=fake-bmc \
   -keyout "$T/key.pem" -out "$T/cert.pem" 2>/dev/null
 
 export HOME="$T/home" STUB_ARGS_FILE="$T/viewer-args"
-export JAVA_TOOL_OPTIONS="-Djava.awt.headless=true -Duser.home=$T/home -Djava.util.prefs.userRoot=$T/prefs"
+# Its own preferences node too: on macOS and Windows, prefs ignore user.home.
+export JAVA_TOOL_OPTIONS="-Djava.awt.headless=true -Duser.home=$T/home -Djava.util.prefs.userRoot=$T/prefs -Dmegarac.prefs=megarac-console-test"
 
 PASSWORD="$(python3 -c 'print("pa ss&=+%'"'"'*~é")')"
 SECRETS=(CookieA1b2C3d4E5f6G7h8 CsrfZ9y8X7w6V5 TokenQ1w2E3r4T5y6U7i8 "$PASSWORD")
@@ -67,7 +71,8 @@ start_bmc() { # <served set> [fake_bmc options...]
   rm -f "$T/port" "$T/requests"
   python3 "$HERE/fake_bmc.py" "$T/port" "$T/cert.pem" "$T/key.pem" "$T/served/$1" "$T/requests" "${@:2}" &
   BMC_PID=$!
-  for _ in $(seq 100); do [ -s "$T/port" ] && break; sleep 0.05; done
+  for _ in $(seq 600); do [ -s "$T/port" ] && break; sleep 0.05; done
+  [ -s "$T/port" ] || { echo "fake_bmc.py did not start" >&2; exit 1; }
   HOST="127.0.0.1:$(cat "$T/port")"
   HOSTS+=("$HOST")
 }
@@ -145,6 +150,9 @@ printf '%s' "$login" | BMC_HOST="$HOST" STUB_SLEEP=60 "$JH/bin/java" -cp "$APP/c
 pid=$!
 for _ in $(seq 200); do grep -q '^PID:' "$T/out" 2>/dev/null && break; sleep 0.05; done
 viewer="$(sed -n 's/^PID://p' "$T/out")"
+viewer_args="$(ps -o args= -p "$viewer" || true)"
+check "argv: the viewer runs Fit" grep -q ' Fit$' <<<"$viewer_args"
+check "argv: the console token is not on the viewer's command line" bash -c "! grep -q TokenQ1w2 <<<'$viewer_args'"
 kill -TERM "$pid"
 wait "$pid" 2>/dev/null || true
 for _ in $(seq 100); do kill -0 "$viewer" 2>/dev/null || break; sleep 0.05; done
@@ -161,7 +169,7 @@ check "no CSRF token: none sent" [ "$(request /Java/jviewer.jnlp csrf)" = None ]
 start_bmc full --refuse
 launch "$login"
 check "refused login: exit 1" [ "$RC" = 1 ]
-check "refused login: no further requests" [ "$(wc -l < "$T/requests")" = 1 ]
+check "refused login: no further requests" [ "$(wc -l < "$T/requests")" -eq 1 ]
 check "refused login: says so" grep -q "refused the login" "$T/err"
 
 # ---- A launch file without arguments, as for a user without administrator rights.
@@ -197,12 +205,15 @@ check "diagnose: redacts the console token" grep -q '(redacted, 21 characters)' 
 check "diagnose: logged out once" [ "$(requests /rpc/WEBSES/logout.asp)" = 1 ]
 check "diagnose: no secret printed" no_secrets "$T/out" "$T/err"
 
+# ---- BMC_HOST never replaces the remembered address; every launch above used it.
+BMC_HOST='' launch "" forget
+check "BMC_HOST: nothing remembered from it" grep -q "^nothing saved" "$T/out"
+
 # ---- The first run asks for the BMC's address too, and remembers it.
 start_bmc full
-rm -rf "$T/prefs"
-BMC_HOST='' launch "$HOST
+BMC_HOST='' launch "https://$HOST/
 $login"
-check "first run: exit 0" [ "$RC" = 0 ]
+check "first run: a pasted web address works, exit 0" [ "$RC" = 0 ]
 BMC_HOST='' launch "$login"
 check "first run: the address is remembered" [ "$RC" = 0 ]
 BMC_HOST='' launch "" forget

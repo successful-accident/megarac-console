@@ -36,7 +36,7 @@ import javax.swing.Timer;
 public class Fit {
     static final String OS = System.getProperty("os.name");
     static final boolean MAC = OS.startsWith("Mac"), WIN = OS.startsWith("Windows");
-    static final Preferences prefs = Preferences.userRoot().node("megarac-console");
+    static final Preferences prefs = Preferences.userRoot().node(System.getProperty("megarac.prefs", "megarac-console"));
     static final long start = System.currentTimeMillis();
     static boolean wasRunning;
     static Boolean lastCaps;
@@ -46,6 +46,15 @@ public class Fit {
     static String iso = System.getenv("BMC_ISO");
 
     public static void main(String[] args) throws Exception {
+        // The launcher sends the viewer's arguments on stdin, each ended by a NUL, so the
+        // session cookie and console token never appear in a process listing.
+        if (args.length == 0) {
+            java.io.ByteArrayOutputStream in = new java.io.ByteArrayOutputStream();
+            byte[] buf = new byte[4096];
+            for (int n; (n = System.in.read(buf)) > 0; ) in.write(buf, 0, n);
+            String all = new String(in.toByteArray(), "UTF-8");
+            args = all.isEmpty() ? new String[0] : all.substring(0, all.length() - 1).split("\0", -1);
+        }
         new Timer(250, e -> tick()).start();
         if (MAC) KeyboardFocusManager.getCurrentKeyboardFocusManager().addKeyEventDispatcher(Fit::capsLock);
         JViewer.main(args);

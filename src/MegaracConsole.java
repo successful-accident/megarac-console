@@ -43,12 +43,14 @@ public class MegaracConsole {
     // Set when this process was started again with the legacy TLS settings.
     static final boolean LEGACY = System.getProperty("megarac.legacy") != null;
     static final boolean STDIN_LOGIN = System.getProperty("megarac.login-on-stdin") != null;
-    static final Preferences prefs = Preferences.userRoot().node(ID);
+    // megarac.prefs: the test suites use their own node, never this one.
+    static final Preferences prefs = Preferences.userRoot().node(System.getProperty("megarac.prefs", ID));
     static final Pattern ARGUMENT = Pattern.compile("<argument>(.*?)</argument>", Pattern.DOTALL);
     static final String[] KNOWN_JARS = { "/Java/release/JViewer.jar", "/Java/release/JViewer-SOC.jar" };
 
     static Path classes, app; // where this class lives, and the install directory above it
     static String host = "", dir;
+    static boolean fromEnv; // BMC_HOST chose the host: never saved over the remembered one
     static Path cache;
     static PrintStream log;
     static String cookie = "", csrf = "";
@@ -57,7 +59,15 @@ public class MegaracConsole {
     static boolean loggedOut;
     static SSLSocketFactory tls;
 
-    public static void main(String[] a) throws Exception {
+    public static void main(String[] a) {
+        try {
+            launch(a);
+        } catch (Exception e) {
+            die(e.getClass().getSimpleName() + ": " + e.getMessage());
+        }
+    }
+
+    static void launch(String[] a) throws Exception {
         String cmd = a.length > 0 ? a[0] : "";
         if (!Arrays.asList("", "forget", "--diagnose").contains(cmd) || a.length > 1) {
             System.err.println("usage: " + ID + " [forget | --diagnose]");
@@ -66,7 +76,9 @@ public class MegaracConsole {
         classes = Paths.get(MegaracConsole.class.getProtectionDomain().getCodeSource().getLocation().toURI());
         app = classes.getParent();
         String env = System.getenv("BMC_HOST");
-        host = env != null && !env.trim().isEmpty() ? env.trim() : prefs.get("host", "");
+        fromEnv = env != null && !clean(env).isEmpty();
+        host = fromEnv ? clean(env) : clean(prefs.get("host", ""));
+        dir = safe(host);
         if (cmd.equals("forget")) {
             forget();
             return;
@@ -82,8 +94,8 @@ public class MegaracConsole {
         if (host.isEmpty() || STDIN_LOGIN) {
             typed = ask(host);
             host = typed[0];
+            dir = safe(host);
         }
-        dir = host.replaceAll("[^A-Za-z0-9.-]", "_");
         cache = cacheRoot().resolve(dir);
         Files.createDirectories(cache);
         openLog();
@@ -131,7 +143,7 @@ public class MegaracConsole {
         secrets.add(cookie);
         secrets.add(csrf);
         if (!fromStore) saveLogin(login);
-        prefs.put("host", host);
+        if (!fromEnv) prefs.put("host", host);
         say("login: " + login[0] + "@" + host + ", CSRF token " + (csrf.isEmpty() ? "absent" : "present"));
 
         // The launch file carries the viewer's command line, including a one-time console token.
@@ -139,7 +151,9 @@ public class MegaracConsole {
             + "&JNLPSTR=JViewer", 30));
         List<String> args = new ArrayList<>();
         for (Matcher m = ARGUMENT.matcher(jnlp); m.find(); ) args.add(xml(m.group(1)));
-        for (String s : args) if (secretLike(s)) secrets.add(s);
+        for (int i = 0; i < args.size(); i++)
+            if (secretLike(args.get(i)) || i > 0 && args.get(i - 1).toLowerCase(Locale.ROOT).matches("-.*(token|cookie|session).*"))
+                secrets.add(args.get(i));
         if (diagnose) {
             report(jnlp, args);
             logout();
@@ -196,6 +210,16 @@ public class MegaracConsole {
             return session.getProtocol() + ", " + session.getCipherSuite() + ", certificate " + key + " signed "
                 + cert.getSigAlgName();
         }
+    }
+
+    // A pasted web address works too: https://bmc/ is the host bmc.
+    static String clean(String h) {
+        return h.trim().replaceFirst("(?i)^https?://", "").replaceFirst("/.*$", "");
+    }
+
+    // The host, made safe for file names.
+    static String safe(String h) {
+        return h.replaceAll("[^A-Za-z0-9.-]", "_");
     }
 
     // The host name or address alone: no port, no brackets.
@@ -387,12 +411,17 @@ public class MegaracConsole {
         String opts = System.getenv("MEGARAC_JAVA_OPTS");
         if (opts != null && !opts.trim().isEmpty()) cmd.addAll(Arrays.asList(opts.trim().split("\\s+")));
         cmd.addAll(Arrays.asList("-Djava.library.path=" + lib, "-cp", join(cp), main));
-        cmd.addAll(args);
+        // Fit reads the viewer's arguments from stdin, so the session cookie and console token
+        // never appear in a process listing. The viewer alone can only take them as arguments.
+        boolean viaStdin = main.equals("Fit");
+        if (!viaStdin) cmd.addAll(args);
         ProcessBuilder pb = new ProcessBuilder(cmd).redirectErrorStream(true);
         if (WIN) pb.directory(cache.toFile()); // the viewer's fallback looks in <cwd>\lib
         say("viewer: " + main + (LEGACY ? ", legacy TLS" : ""));
         child = pb.start();
-        child.getOutputStream().close();
+        try (OutputStream o = child.getOutputStream()) {
+            if (viaStdin) for (String s : args) o.write((s + "\0").getBytes(UTF_8));
+        }
         try (BufferedReader r = new BufferedReader(new InputStreamReader(child.getInputStream(), UTF_8))) {
             for (String line; (line = r.readLine()) != null; ) {
                 String s = scrub(line);
@@ -409,7 +438,7 @@ public class MegaracConsole {
     // Starts this launcher again with the legacy TLS settings. A login typed this run goes
     // along on stdin; the host is saved first, since it is not secret.
     static void relaunch(String[] a, String[] typed) throws Exception {
-        prefs.put("host", host);
+        if (typed != null && !fromEnv) prefs.put("host", host);
         List<String> cmd = new ArrayList<>(Arrays.asList(java(WIN ? "javaw" : "java"), "-Dmegarac.legacy=1",
             "-Djava.security.properties=" + app.resolve("legacy-tls.security")));
         if (MAC) cmd.add("-Dapple.awt.UIElement=true");
@@ -435,7 +464,8 @@ public class MegaracConsole {
         while (m.find()) {
             String v = xml(m.group(1));
             m.appendReplacement(redacted, Matcher.quoteReplacement("<argument>"
-                + (secretLike(v) ? "(redacted, " + v.length() + " characters)" : m.group(1)) + "</argument>"));
+                + (secretLike(v) || secrets.contains(v) ? "(redacted, " + v.length() + " characters)" : m.group(1))
+                + "</argument>"));
         }
         m.appendTail(redacted);
         out("---- launch file, secrets redacted ----\n" + scrub(redacted.toString()).trim());
@@ -476,6 +506,9 @@ public class MegaracConsole {
     // ---- The saved login: the macOS Keychain, the Windows account's DPAPI, or the
     // freedesktop Secret Service through secret-tool. Without one, ask every time.
 
+    static final String UTF8_CONSOLE =
+        "[Console]::InputEncoding = [Console]::OutputEncoding = New-Object Text.UTF8Encoding $false; ";
+
     static String service() {
         return ID + ":" + host;
     }
@@ -491,7 +524,7 @@ public class MegaracConsole {
             try {
                 List<String> f = Files.readAllLines(windowsLogin(), UTF_8);
                 String pass = run(f.get(1) + "\n", "powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
-                    "$s = [Console]::In.ReadLine() | ConvertTo-SecureString; (New-Object Net.NetworkCredential('', $s)).Password");
+                    UTF8_CONSOLE + "$s = [Console]::In.ReadLine() | ConvertTo-SecureString; (New-Object Net.NetworkCredential('', $s)).Password");
                 return pass == null ? null : new String[] { f.get(0), chomp(pass) };
             } catch (IOException | IndexOutOfBoundsException e) {
                 return null;
@@ -505,16 +538,18 @@ public class MegaracConsole {
         if (MAC) {
             // Through stdin, so the password is never on a command line. If security reads
             // it back differently, fall back to the argument form.
-            run("add-generic-password -U -s " + quote(service()) + " -a " + quote(login[0]) + " -w " + quote(login[1]) + "\n",
-                "security", "-i");
+            run("add-generic-password -U -s " + quote(service()) + " -a " + quote(login[0]) + " -w " + quote(login[1])
+                + "\nexit\n", "security", "-i");
             String[] back = savedLogin();
-            if (back == null || !Arrays.equals(back, login))
-                run(null, "security", "add-generic-password", "-U", "-s", service(), "-a", login[0], "-w", login[1]);
+            if ((back == null || !Arrays.equals(back, login))
+                && run(null, "security", "add-generic-password", "-U", "-s", service(), "-a", login[0], "-w", login[1]) == null)
+                say("could not save the login in the Keychain");
         } else if (WIN) {
             String blob = run(login[1] + "\n", "powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
-                "[Console]::In.ReadLine() | ConvertTo-SecureString -AsPlainText -Force | ConvertFrom-SecureString");
+                UTF8_CONSOLE + "[Console]::In.ReadLine() | ConvertTo-SecureString -AsPlainText -Force | ConvertFrom-SecureString");
             try {
-                if (blob != null) Files.write(windowsLogin(), Arrays.asList(login[0], blob.trim()), UTF_8);
+                if (blob == null) say("could not save the login: PowerShell did not answer");
+                else Files.write(windowsLogin(), Arrays.asList(login[0], blob.trim()), UTF_8);
             } catch (IOException e) {
                 say("could not save the login: " + e.getMessage());
             }
@@ -531,7 +566,7 @@ public class MegaracConsole {
     }
 
     static Path windowsLogin() {
-        return Paths.get(System.getenv("LOCALAPPDATA"), ID, "login-" + host.replaceAll("[^A-Za-z0-9.-]", "_") + ".txt");
+        return Paths.get(System.getenv("LOCALAPPDATA"), ID, "login-" + dir + ".txt");
     }
 
     static void forget() {
@@ -540,7 +575,7 @@ public class MegaracConsole {
             return;
         }
         deleteLogin();
-        prefs.remove("legacy-tls:" + host.replaceAll("[^A-Za-z0-9.-]", "_"));
+        prefs.remove("legacy-tls:" + dir);
         if (host.equals(prefs.get("host", ""))) prefs.remove("host");
         System.out.println("forgot " + service());
     }
@@ -571,6 +606,7 @@ public class MegaracConsole {
             reader.start();
             if (!p.waitFor(20, TimeUnit.SECONDS)) {
                 p.destroyForcibly();
+                say(cmd[0] + (cmd.length > 1 ? " " + cmd[1] : "") + ": no answer in 20 s"); // never the rest: it may hold the password
                 return null;
             }
             reader.join(2000);
@@ -586,7 +622,7 @@ public class MegaracConsole {
     static String[] ask(String h) {
         if (HEADLESS || STDIN_LOGIN) {
             BufferedReader in = new BufferedReader(new InputStreamReader(System.in, UTF_8));
-            if (h.isEmpty()) h = prompt(in, "BMC address: ").trim();
+            if (h.isEmpty()) h = clean(prompt(in, "BMC address: "));
             String user = prompt(in, "BMC user for " + h + ": ").trim();
             Console console = System.console();
             String pass = console != null ? new String(console.readPassword("Password: ")) : prompt(in, "Password: ");
@@ -612,7 +648,7 @@ public class MegaracConsole {
         d.setVisible(true);
         d.dispose();
         if (!Integer.valueOf(JOptionPane.OK_OPTION).equals(pane.getValue())) System.exit(0);
-        String[] r = { hostField.getText().trim(), userField.getText().trim(), new String(passField.getPassword()) };
+        String[] r = { clean(hostField.getText()), userField.getText().trim(), new String(passField.getPassword()) };
         if (r[0].isEmpty() || r[1].isEmpty()) die("No BMC address or user given.");
         return r;
     }

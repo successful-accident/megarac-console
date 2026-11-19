@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2026 Jeff Morrison
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Licensing for the files that can't carry a header: the binary icons and .gitignore.
+version = 1
+
+[[annotations]]
+path = ["assets/**", ".gitignore"]
+SPDX-FileCopyrightText = "2026 Jeff Morrison"
+SPDX-License-Identifier = "GPL-3.0-or-later"

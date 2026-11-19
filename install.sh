@@ -30,7 +30,17 @@ die() {
   exit 1
 }
 
+# Ours: an app bundle with our identifier, or a command that runs our launcher.
+ours() {
+  if [ "$OS" = Darwin ]; then
+    [ ! -e "$BUNDLE" ] || grep -q "$ID" "$BUNDLE/Contents/Info.plist" 2>/dev/null
+  else
+    [ ! -e "$BIN" ] || grep -q MegaracConsole "$BIN" 2>/dev/null
+  fi
+}
+
 if [ "${1:-}" = --uninstall ]; then
+  ours || die "the installed copy was not made by this installer; nothing removed."
   if [ "$OS" = Darwin ]; then rm -rf "$BUNDLE"; else rm -rf "$APP" "$BIN" "$DESKTOP"; fi
   echo "removed $NAME. The saved login, cache and log stay; the README's Uninstall section lists them."
   exit 0
@@ -54,6 +64,8 @@ if [ -z "$JH" ] || ! jdk8 "$JH"; then
   die "no Java 8 JDK found. The README's Install section says where to get one, or set JAVA_HOME."
 fi
 command -v cc >/dev/null 2>&1 || die "no C compiler (cc). On macOS: xcode-select --install. On Linux: install gcc."
+if [ "$OS" = Darwin ]; then where="$BUNDLE"; else where="$BIN"; fi
+ours || die "$where exists and was not made by this installer. Move it away, then run this again."
 
 # Build everything in a scratch directory first, so a failure leaves an earlier
 # install as it was.
@@ -79,17 +91,16 @@ cp "$A/lib/libjavacdromwrapper.$ext" "$A/lib/libjavafloppywrapper.$ext"
 cp "$A/lib/libjavacdromwrapper.$ext" "$A/lib/libjavaharddiskwrapper.$ext"
 
 if [ "$OS" = Darwin ]; then
-  if [ -d "$BUNDLE" ] && ! grep -q "$ID" "$BUNDLE/Contents/Info.plist" 2>/dev/null; then
-    die "$BUNDLE exists and was not made by this installer. Move it away, then run this again."
-  fi
   C="$STAGE/bundle/Contents"
   mkdir -p "$C/MacOS"
   mv "$A" "$C/Resources"
   cp "$ROOT/assets/AppIcon.icns" "$C/Resources/"
-  # The app finds Java 8 at every launch, so updating Java never breaks it.
-  cat > "$C/MacOS/megarac-console" <<'EOF'
+  # The app finds Java 8 at every launch: MEGARAC_JAVA_HOME, then the system's
+  # Java 8, then the one used now, so updating Java never breaks it.
+  sed "s|@JH@|$JH|" > "$C/MacOS/megarac-console" <<'EOF'
 #!/bin/sh
-JH="$(/usr/libexec/java_home -v 1.8 -a "$(uname -m)" 2>/dev/null || /usr/libexec/java_home -v 1.8 2>/dev/null)" || {
+JH="${MEGARAC_JAVA_HOME:-$(/usr/libexec/java_home -v 1.8 -a "$(uname -m)" 2>/dev/null || /usr/libexec/java_home -v 1.8 2>/dev/null || echo '@JH@')}"
+[ -x "$JH/bin/java" ] || {
   osascript -e 'display alert "MegaRAC Console" message "Java 8 is not installed. Install it with: brew install --cask zulu@8" as critical' >/dev/null 2>&1
   exit 1
 }
@@ -114,7 +125,7 @@ EOF
   rm -rf "$BUNDLE"
   mv "$STAGE/bundle" "$BUNDLE"
   echo "installed $BUNDLE"
-  file "$BUNDLE/Contents/Resources/lib/libjavacdromwrapper.$ext"
+  file "$BUNDLE/Contents/Resources/lib/libjavacdromwrapper.$ext" 2>/dev/null || true
   exit 0
 fi
 
@@ -146,7 +157,7 @@ Terminal=false
 Categories=Network;RemoteAccess;
 EOF
 echo "installed $APP, $BIN and $DESKTOP"
-file "$APP/lib/libjavacdromwrapper.$ext"
+file "$APP/lib/libjavacdromwrapper.$ext" 2>/dev/null || true
 command -v secret-tool >/dev/null 2>&1 ||
   echo "note: without secret-tool (Debian/Ubuntu: libsecret-tools), the login is asked for at every launch."
 case ":$PATH:" in
