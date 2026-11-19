@@ -11,9 +11,9 @@
 //   megarac-console forget       delete the saved login and host
 //   megarac-console --diagnose   check TLS, the login and the launch file, print a
 //                                report with every secret removed, then log out
-//
-// BMC_HOST overrides the saved host. BMC_ISO=<image.iso> mounts that image as the
-// server's virtual CD once video starts.
+//   --host <address>             use that BMC instead of the saved one (or BMC_HOST)
+//   --iso <image.iso>            mount that image as the server's virtual CD once
+//                                video starts (or BMC_ISO)
 import java.awt.GraphicsEnvironment;
 import java.awt.GridLayout;
 import java.io.*;
@@ -50,7 +50,8 @@ public class MegaracConsole {
 
     static Path classes, app; // where this class lives, and the install directory above it
     static String host = "", dir;
-    static boolean fromEnv; // BMC_HOST chose the host: never saved over the remembered one
+    static boolean fromEnv; // --host or BMC_HOST chose the host: never saved over the remembered one
+    static String iso; // --iso, passed to Fit as BMC_ISO
     static Path cache;
     static PrintStream log;
     static String cookie = "", csrf = "";
@@ -68,14 +69,22 @@ public class MegaracConsole {
     }
 
     static void launch(String[] a) throws Exception {
-        String cmd = a.length > 0 ? a[0] : "";
-        if (!Arrays.asList("", "forget", "--diagnose").contains(cmd) || a.length > 1) {
-            System.err.println("usage: " + ID + " [forget | --diagnose]");
+        // --host and --iso do what BMC_HOST and BMC_ISO do, and take precedence over them.
+        List<String> rest = new ArrayList<>();
+        String hostArg = null;
+        for (int i = 0; i < a.length; i++) {
+            if (a[i].equals("--host") && i + 1 < a.length) hostArg = a[++i];
+            else if (a[i].equals("--iso") && i + 1 < a.length) iso = Paths.get(a[++i]).toAbsolutePath().toString();
+            else rest.add(a[i]);
+        }
+        String cmd = rest.isEmpty() ? "" : rest.get(0);
+        if (!Arrays.asList("", "forget", "--diagnose").contains(cmd) || rest.size() > 1) {
+            System.err.println("usage: " + ID + " [--host <address>] [--iso <image.iso>] [forget | --diagnose]");
             System.exit(2);
         }
         classes = Paths.get(MegaracConsole.class.getProtectionDomain().getCodeSource().getLocation().toURI());
         app = classes.getParent();
-        String env = System.getenv("BMC_HOST");
+        String env = hostArg != null ? hostArg : System.getenv("BMC_HOST");
         fromEnv = env != null && !clean(env).isEmpty();
         host = fromEnv ? clean(env) : clean(prefs.get("host", ""));
         dir = safe(host);
@@ -417,6 +426,7 @@ public class MegaracConsole {
         if (!viaStdin) cmd.addAll(args);
         ProcessBuilder pb = new ProcessBuilder(cmd).redirectErrorStream(true);
         if (WIN) pb.directory(cache.toFile()); // the viewer's fallback looks in <cwd>\lib
+        if (iso != null) pb.environment().put("BMC_ISO", iso);
         say("viewer: " + main + (LEGACY ? ", legacy TLS" : ""));
         child = pb.start();
         try (OutputStream o = child.getOutputStream()) {

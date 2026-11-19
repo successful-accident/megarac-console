@@ -2,9 +2,10 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 # Builds and tests MegaRAC Console on every platform GitHub has a runner for:
-# media.c against the recorded replies, and the installed launcher against a
-# fake BMC. No real BMC is involved; the README's status table says which
-# platforms have also been checked against one.
+# media.c against the recorded replies, and the launcher against a fake BMC,
+# installed both from source and from the release package built here. No real
+# BMC is involved; the README's status table says which platforms have also been
+# checked against one. A v* tag also puts the packages on a draft release.
 name: test
 on:
   push:
@@ -22,7 +23,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, ubuntu-24.04-arm, macos-15, macos-15-intel]
+        include:
+          - { os: ubuntu-24.04, package: megarac-console-linux-x86_64.tar.gz }
+          - { os: ubuntu-24.04-arm, package: megarac-console-linux-aarch64.tar.gz }
+          - { os: macos-15, package: megarac-console-macos-arm64.dmg }
+          - { os: macos-15-intel, package: megarac-console-macos-x64.dmg }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -45,7 +50,16 @@ jobs:
         run: test/test-launcher.sh "$JAVA_HOME"
       - name: shellcheck
         if: matrix.os == 'ubuntu-24.04'
-        run: shellcheck -s sh install.sh && shellcheck test/test-launcher.sh test/test-media.sh
+        run: shellcheck -s sh install.sh .github/package.sh && shellcheck test/test-launcher.sh test/test-media.sh
+      - name: the release package, with this Java 8 inside
+        run: mkdir -p dist && .github/package.sh "$JAVA_HOME" "dist/${{ matrix.package }}"
+      - name: the installed release package against a fake BMC
+        run: MEGARAC_PACKAGE="$PWD/dist/${{ matrix.package }}" test/test-launcher.sh "$JAVA_HOME"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.package }}
+          path: dist/${{ matrix.package }}
+          if-no-files-found: error
   windows:
     runs-on: windows-latest
     steps:
@@ -61,3 +75,38 @@ jobs:
       - name: the same, PowerShell 7
         shell: pwsh
         run: test/test-windows.ps1
+      - name: the release package, with this Java 8 inside
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+          & "$env:JAVA_HOME\bin\javac.exe" -nowarn -encoding UTF-8 -d build\classes src\MegaracConsole.java
+          $version = if ('${{ github.ref_type }}' -eq 'tag') { '${{ github.ref_name }}'.TrimStart('v') } else { '0-dev' }
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /Qp "/DJdk=$env:JAVA_HOME" "/DVersion=$version" "/O$PWD\dist" .github\megarac-console.iss
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+      - name: the installed release package against a fake BMC, Windows PowerShell 5.1
+        shell: powershell
+        run: $env:MEGARAC_PACKAGE = "$PWD\dist\megarac-console-windows-x64-setup.exe"; test/test-windows.ps1
+      - name: the same, PowerShell 7
+        shell: pwsh
+        run: $env:MEGARAC_PACKAGE = "$PWD\dist\megarac-console-windows-x64-setup.exe"; test/test-windows.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: megarac-console-windows-x64-setup.exe
+          path: dist/megarac-console-windows-x64-setup.exe
+          if-no-files-found: error
+  # A v* tag: every package, on a draft release to check and publish by hand.
+  release:
+    if: github.ref_type == 'tag' && startsWith(github.ref_name, 'v')
+    needs: [unix, windows]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" --draft --generate-notes --repo "$GITHUB_REPOSITORY" dist/*

@@ -7,6 +7,9 @@
 # libraries and saves the login with DPAPI, a second launch that reads it back,
 # and forget.
 #   test/test-windows.ps1     (JAVA_HOME: a Java 8 JDK; needs python and openssl)
+# With MEGARAC_PACKAGE=<setup.exe>, install.ps1 installs that release package,
+# everything runs on the Java 8 inside it, and the package's command and
+# uninstaller are checked too.
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot
 $jdk = $env:JAVA_HOME
@@ -18,9 +21,10 @@ $script:failed = 0
 function Check([string]$name, [bool]$ok) {
   if ($ok) { "ok   $name" } else { "FAIL $name"; $script:failed = 1 }
 }
-function Launch([string]$stdin, [string[]]$more) { # returns the exit code; output in $t\out and $t\err
+function Launch([string]$stdin, [string[]]$more, [string]$command) { # returns the exit code; output in $t\out and $t\err
   [IO.File]::WriteAllText("$t\stdin", $stdin, (New-Object Text.UTF8Encoding $false))
-  $p = Start-Process "$jdk\bin\java.exe" -ArgumentList (@('-cp', "`"$app\classes`"", 'MegaracConsole') + $more) `
+  $exe, $arguments = if ($command) { $command, $more } else { "$jdk\bin\java.exe", (@('-cp', "`"$app\classes`"", 'MegaracConsole') + $more) }
+  $p = Start-Process $exe -ArgumentList $arguments `
     -RedirectStandardInput "$t\stdin" -RedirectStandardOutput "$t\out" -RedirectStandardError "$t\err" `
     -NoNewWindow -PassThru
   $null = $p.Handle # Windows PowerShell 5.1 reports no exit code without this
@@ -47,7 +51,15 @@ $env:APPDATA = "$t\roaming"
 & "$root\install.ps1" -JavaHome $jdk | Out-Null
 $app = "$t\local\megarac-console\app"
 Check 'install: launcher compiled' (Test-Path "$app\classes\MegaracConsole.class")
-Check 'install: Start-menu shortcut' (Test-Path "$t\roaming\Microsoft\Windows\Start Menu\Programs\MegaRAC Console.lnk")
+if ($env:MEGARAC_PACKAGE) {
+  $jdk = "$app\jdk"
+  Check "install: the package's own Java 8" (Test-Path "$jdk\bin\javac.exe")
+  # The package's installer resolves the Start menu itself, not through APPDATA.
+  Check 'install: Start-menu shortcut' (Test-Path "$([Environment]::GetFolderPath('Programs'))\MegaRAC Console.lnk")
+  Check 'install: the command is on PATH' (((Get-ItemProperty HKCU:\Environment).Path -split ';') -contains "$app\bin")
+} else {
+  Check 'install: Start-menu shortcut' (Test-Path "$t\roaming\Microsoft\Windows\Start Menu\Programs\MegaRAC Console.lnk")
+}
 
 # What the fake BMC serves: the stub viewer, a Win64.jar holding a "library", and a
 # Win32.jar holding another, listed first in the launch file, which must not be used.
@@ -104,8 +116,18 @@ Check 'launch: no secret in output or log' (NoSecrets "$t\out", "$t\err", "$t\lo
 
 $code = Launch '' @()
 Check 'saved login: second launch asks nothing' ($code -eq 0)
+if ($env:MEGARAC_PACKAGE) {
+  $code = Launch '' '--iso', "`"$t\cd.iso`"" "$app\bin\megarac-console.cmd"
+  Check 'command: launches with the saved login, exit 0' ($code -eq 0)
+  Check 'command: --iso reaches the viewer' ((Get-Content "$t\out") -contains "ISO:$t\cd.iso")
+}
 $code = Launch '' 'forget'
 Check 'forget: login deleted' (($code -eq 0) -and -not (Test-Path $saved))
+if ($env:MEGARAC_PACKAGE) {
+  & "$root\install.ps1" -Uninstall | Out-Null
+  Check 'uninstall: removed' (-not (Test-Path $app))
+  Check 'uninstall: off PATH' (-not (((Get-ItemProperty HKCU:\Environment).Path -split ';') -contains "$app\bin"))
+}
 
 Stop-Process $bmc -ErrorAction Ignore
 Remove-Item -Recurse HKCU:\Software\JavaSoft\Prefs\megarac-console-test -ErrorAction Ignore

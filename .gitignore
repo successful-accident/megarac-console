@@ -1,6 +1,7 @@
 # Build output, and the vendor's jars and libraries, which the BMC serves and
 # this repository never carries.
 build/
+dist/
 *.class
 *.jar
 *.part

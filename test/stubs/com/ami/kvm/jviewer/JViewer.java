@@ -8,15 +8,17 @@ package com.ami.kvm.jviewer;
 import java.io.PrintWriter;
 import java.lang.management.ManagementFactory;
 
-// The viewer's main class. Writes its arguments to $STUB_ARGS_FILE, loads the
-// three media libraries the real viewer loads (unless $STUB_NO_LIBS is set),
-// then waits $STUB_SLEEP seconds and exits with $STUB_EXIT.
+// The viewer's main class. Writes its arguments to $STUB_ARGS_FILE, prints the
+// BMC_ISO it was given, loads the three media libraries the real viewer loads
+// (unless $STUB_NO_LIBS is set), then waits $STUB_SLEEP seconds and exits with
+// $STUB_EXIT.
 public class JViewer {
     public static void main(String[] args) throws Exception {
         System.out.println("PID:" + ManagementFactory.getRuntimeMXBean().getName().split("@")[0]);
         try (PrintWriter w = new PrintWriter(System.getenv("STUB_ARGS_FILE"), "UTF-8")) {
             for (String a : args) w.println(a);
         }
+        if (System.getenv("BMC_ISO") != null) System.out.println("ISO:" + System.getenv("BMC_ISO"));
         if (System.getenv("STUB_NO_LIBS") == null)
             for (String lib : new String[] { "javacdromwrapper", "javafloppywrapper", "javaharddiskwrapper" }) {
                 System.loadLibrary(lib);

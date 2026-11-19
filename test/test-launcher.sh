@@ -9,6 +9,8 @@
 # Keychain on macOS or the Secret Service where secret-tool is installed; the
 # entries it makes are deleted at the end.
 #   test/test-launcher.sh [JAVA_HOME]     a Java 8 JDK; default $JAVA_HOME
+# With MEGARAC_PACKAGE=<release package>, install.sh installs that package, and
+# everything runs on the Java 8 inside it instead.
 # Needs python3, openssl, curl and a C compiler.
 set -euo pipefail
 
@@ -44,12 +46,16 @@ mkdir -p "$T/home" "$T/stubs" "$T/served"
 if [ "$(uname)" = Darwin ]; then
   HOME="$T/home" JAVA_HOME="$JH" MEGARAC_APPS="$T/Applications" sh "$ROOT/install.sh" > "$T/install.out"
   APP="$T/Applications/MegaRAC Console.app/Contents/Resources"
+  APPS="$T/Applications"
   CACHE="$T/home/Library/Caches/megarac-console" LOG="$T/home/Library/Logs/megarac-console.log"
 else
   HOME="$T/home" JAVA_HOME="$JH" sh "$ROOT/install.sh" > "$T/install.out"
   APP="$T/home/.local/share/megarac-console"
+  APPS=
   CACHE="$T/home/.cache/megarac-console" LOG="$T/home/.local/state/megarac-console/megarac-console.log"
 fi
+COMMAND="$T/home/.local/bin/megarac-console"
+[ -z "${MEGARAC_PACKAGE:-}" ] || JH="$APP/jdk"
 
 # What the fake BMC serves: the stub viewer, a second jar, and native jars to list.
 mkdir -p "$T/served/full" "$T/served/nofit"
@@ -125,6 +131,7 @@ $PASSWORD
 check "install: says so" grep -q '^installed ' "$T/install.out"
 check "install: media library under all three names" \
   bash -c "ls '$APP'/lib/libjava{cdrom,floppy,harddisk}wrapper.* >/dev/null"
+if [ -n "${MEGARAC_PACKAGE:-}" ]; then check "install: the package's own Java 8" test -x "$APP/jdk/bin/javac"; fi
 
 # ---- A normal launch.
 start_bmc full
@@ -224,9 +231,17 @@ check "diagnose: redacts the console token" grep -q '(redacted, 21 characters)' 
 check "diagnose: logged out once" [ "$(requests /rpc/WEBSES/logout.asp)" = 1 ]
 check "diagnose: no secret printed" no_secrets "$T/out" "$T/err"
 
+# ---- --host and --iso, through the installed command, which picks Java 8 itself.
+start_bmc full
+rm -f "$STUB_ARGS_FILE"
+printf '%s' "$login" | BMC_HOST='' "$COMMAND" --host "$HOST" --iso "$T/cd.iso" >"$T/out" 2>"$T/err" && RC=0 || RC=$?
+check "command: --host opens that BMC, exit 0" [ "$RC" = 0 ]
+check "command: --iso reaches the viewer as an absolute path" grep -qx "ISO:$T/cd.iso" "$T/out"
+check "command: viewer got exactly the launch file's arguments" diff <(expected_args) "$STUB_ARGS_FILE"
+
 # ---- BMC_HOST never replaces the remembered address; every launch above used it.
 BMC_HOST='' launch "" forget
-check "BMC_HOST: nothing remembered from it" grep -q "^nothing saved" "$T/out"
+check "BMC_HOST and --host: nothing remembered from them" grep -q "^nothing saved" "$T/out"
 
 # ---- The first run asks for the BMC's address too, and remembers it.
 start_bmc full
@@ -239,14 +254,10 @@ BMC_HOST='' launch "" forget
 check "forget: forgets the address" grep -q "^forgot megarac-console:$HOST" "$T/out"
 
 # ---- Installing again updates in place; --uninstall removes it.
-if [ "$(uname)" = Darwin ]; then
-  again() { HOME="$T/home" JAVA_HOME="$JH" MEGARAC_APPS="$T/Applications" sh "$ROOT/install.sh" "$@" >/dev/null; }
-else
-  again() { HOME="$T/home" JAVA_HOME="$JH" sh "$ROOT/install.sh" "$@" >/dev/null; }
-fi
+again() { HOME="$T/home" JAVA_HOME="$JH" MEGARAC_APPS="$APPS" sh "$ROOT/install.sh" "$@" >/dev/null; }
 check "install: again updates in place" again
 again --uninstall
-check "install: --uninstall removes it" test ! -e "$APP"
+check "install: --uninstall removes it" bash -c "[ ! -e '$APP' ] && [ ! -e '$COMMAND' ]"
 
 stop_bmc
 [ "$FAILED" = 0 ] && echo "all launcher tests passed"
