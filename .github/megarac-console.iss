@@ -58,7 +58,7 @@ var
   Path, Dir: string;
   P: Integer;
 begin
-  if (Step = usPostUninstall) and RegQueryStringValue(HKCU, 'Environment', 'Path', Path) then
+  if (Step = usUninstall) and RegQueryStringValue(HKCU, 'Environment', 'Path', Path) then
   begin
     Dir := ';' + ExpandConstant('{app}\bin');
     P := Pos(Uppercase(Dir), Uppercase(Path));

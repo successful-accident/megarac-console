@@ -236,6 +236,7 @@ start_bmc full
 rm -f "$STUB_ARGS_FILE"
 printf '%s' "$login" | BMC_HOST='' "$COMMAND" --host "$HOST" --iso "$T/cd.iso" >"$T/out" 2>"$T/err" && RC=0 || RC=$?
 check "command: --host opens that BMC, exit 0" [ "$RC" = 0 ]
+[ "$RC" = 0 ] || sed 's/^/    /' "$T/err"
 check "command: --iso reaches the viewer as an absolute path" grep -qx "ISO:$T/cd.iso" "$T/out"
 check "command: viewer got exactly the launch file's arguments" diff <(expected_args) "$STUB_ARGS_FILE"
 

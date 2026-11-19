@@ -26,7 +26,11 @@ function Run([string]$exe, [string[]]$arguments) {
 }
 
 if ($Uninstall) {
-  if (Test-Path "$app\unins000.exe") { $null = Run "$app\unins000.exe" '/VERYSILENT', '/SUPPRESSMSGBOXES' }
+  if (Test-Path "$app\unins000.exe") {
+    # It hands over to a copy of itself and returns at once; it deletes itself when done.
+    $null = Run "$app\unins000.exe" '/VERYSILENT', '/SUPPRESSMSGBOXES'
+    foreach ($i in 1..120) { if (-not (Test-Path "$app\unins000.exe")) { break }; Start-Sleep -Milliseconds 500 }
+  }
   Remove-Item -Recurse -Force $app, $link -ErrorAction Ignore
   "removed MegaRAC Console. The saved login, cache and log stay; the README's Uninstall section lists them."
   exit 0
