@@ -26,19 +26,72 @@ opt.add_argument("--empty-jnlp", action="store_true")
 opt.add_argument("--tls-max")
 o = opt.parse_args()
 
+# The shape of a real launch file (a Quanta D51B-2U's, firmware 3.83.00): each
+# jar in its own resources block, Win32.jar listed before Win64.jar, and no
+# main-class. The arguments are that BMC's, plus a -title with a space and an
+# entity in it; the token and cookie are fake.
 JNLP = """<?xml version="1.0" encoding="UTF-8"?>
+
 <jnlp spec="1.0+" codebase="https://{ip}:443/Java">
-  <information><title>JViewer</title><vendor>American Megatrends, Inc.</vendor></information>
-  <security><all-permissions/></security>
-  <resources><j2se version="1.5+"/><jar href="release/JViewer.jar"/></resources>
-  <resources os="Windows" arch="amd64"><nativelib href="release/Win64.jar"/></resources>
-  <resources os="Mac OS X" arch="x86_64"><nativelib href="release/Mac64.jar"/></resources>
-  <application-desc main-class="com.ami.kvm.jviewer.JViewer">{args}
-  </application-desc>
+     <information>
+        <title>JViewer</title>
+        <vendor>American Megatrends, Inc.</vendor>
+        <description kind="one-line">JViewer Console Redirection Application</description>
+    </information>
+	<security>
+		<all-permissions/>
+	</security>
+    <resources>
+        <j2se version="1.5+"/>
+        <jar href="release/JViewer.jar"/>
+    </resources>
+    <resources>
+        <j2se version="1.5+"/>
+        <jar href="release/JViewer-SOC.jar"/>
+    </resources>
+    <resources os="Windows" arch="x86">
+    	<j2se version="1.5+"/>
+    	<nativelib href="release/Win32.jar"/>
+    </resources>
+    <resources os="Windows" arch="amd64">
+           <j2se version="1.5+"/>
+           <nativelib href="release/Win64.jar"/>
+    </resources>
+    <resources os="Linux" arch="x86">
+    	<j2se version="1.5+"/>
+    	<nativelib href="release/Linux_x86_32.jar"/>
+    </resources>
+    <resources os="Linux" arch="i386">
+    	<j2se version="1.5+"/>
+    	<nativelib href="release/Linux_x86_32.jar"/>
+    </resources>
+	<resources os="Linux" arch="x86_64">
+	 	<j2se version="1.5+"/>
+    	<nativelib href="release/Linux_x86_64.jar"/>
+	</resources>
+	<resources os="Linux" arch="amd64">
+	 	<j2se version="1.5+"/>
+    	<nativelib href="release/Linux_x86_64.jar"/>
+	</resources>
+    <resources os="Mac OS X" arch="i386">
+	<j2se version="1.5+"/>
+	<nativelib href="release/Mac32.jar"/>
+    </resources>
+    <resources os="Mac OS X" arch="x86_64">
+	<j2se version="1.5+"/>
+	<nativelib href="release/Mac64.jar"/>
+    </resources>
+    <application-desc>
+        {args}
+
+    </application-desc>
 </jnlp>
 """
 ARGS = ["-apptype", "JViewer", "-hostname", "{ip}", "-title", "Server &amp; Console - fake",
-        "-kvmtoken", TOKEN, "-kvmport", "7578", "-webcookie", COOKIE]
+        "-kvmtoken", TOKEN, "-kvmsecure", "0", "-kvmport", "7578", "-vmsecure", "0",
+        "-cdstate", "1", "-fdstate", "1", "-hdstate", "1", "-cdport", "5120", "-fdport", "5122", "-hdport", "5123",
+        "-cdnum", "1", "-fdnum", "1", "-hdnum", "1", "-userpriv", "255", "-lang", "EN", "-keyboardlayout", "EN",
+        "-webcookie", COOKIE]
 
 
 class BMC(http.server.BaseHTTPRequestHandler):
@@ -84,7 +137,7 @@ class BMC(http.server.BaseHTTPRequestHandler):
             return self.reply(401, "")
         if url.path == "/Java/jviewer.jnlp":
             ip = urllib.parse.parse_qs(url.query).get("EXTRNIP", ["?"])[0]
-            args = "" if o.empty_jnlp else "".join("\n    <argument>%s</argument>" % a.format(ip=ip) for a in ARGS)
+            args = "" if o.empty_jnlp else "\n".join("<argument>%s</argument>" % a.format(ip=ip) for a in ARGS)
             return self.reply(200, JNLP.format(ip=ip, args=args), "application/x-java-jnlp-file")
         if url.path.startswith("/Java/release/"):
             try:

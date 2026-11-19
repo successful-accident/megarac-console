@@ -113,7 +113,9 @@ check() { # <name> <command...>
 }
 expected_args() {
   printf '%s\n' -apptype JViewer -hostname 127.0.0.1 -title "Server & Console - fake" \
-    -kvmtoken TokenQ1w2E3r4T5y6U7i8 -kvmport 7578 -webcookie CookieA1b2C3d4E5f6G7h8
+    -kvmtoken TokenQ1w2E3r4T5y6U7i8 -kvmsecure 0 -kvmport 7578 -vmsecure 0 -cdstate 1 -fdstate 1 -hdstate 1 \
+    -cdport 5120 -fdport 5122 -hdport 5123 -cdnum 1 -fdnum 1 -hdnum 1 -userpriv 255 -lang EN -keyboardlayout EN \
+    -webcookie CookieA1b2C3d4E5f6G7h8
 }
 login="admin
 $PASSWORD

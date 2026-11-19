@@ -49,7 +49,8 @@ $app = "$t\local\megarac-console\app"
 Check 'install: launcher compiled' (Test-Path "$app\classes\MegaracConsole.class")
 Check 'install: Start-menu shortcut' (Test-Path "$t\roaming\Microsoft\Windows\Start Menu\Programs\MegaRAC Console.lnk")
 
-# What the fake BMC serves: the stub viewer, and a Win64.jar holding a "library".
+# What the fake BMC serves: the stub viewer, a Win64.jar holding a "library", and a
+# Win32.jar holding another, listed first in the launch file, which must not be used.
 & "$jdk\bin\javac.exe" -nowarn -d "$t\stubs" (Get-ChildItem -Recurse "$PSScriptRoot\stubs" -Filter *.java).FullName
 Push-Location "$t\stubs"
 & "$jdk\bin\jar.exe" cf "$t\served\JViewer.jar" com
@@ -58,6 +59,9 @@ Set-Content "$t\javacdromwrapper.dll" 'dll'
 & "$jdk\bin\jar.exe" cf "$t\served\Win64.jar" -C $t javacdromwrapper.dll
 Copy-Item "$t\served\Win64.jar" "$t\served\JViewer-SOC.jar"
 Copy-Item "$t\served\Win64.jar" "$t\served\Mac64.jar"
+New-Item -ItemType Directory "$t\win32" | Out-Null
+Set-Content "$t\win32\javacdromwrapper.dll" 'win32'
+& "$jdk\bin\jar.exe" cf "$t\served\Win32.jar" -C "$t\win32" javacdromwrapper.dll
 # Windows PowerShell 5.1 turns a native command's redirected stderr (openssl's
 # progress dots) into a terminating error under 'Stop'; check the result instead.
 $ErrorActionPreference = 'Continue'
@@ -86,9 +90,13 @@ Check 'diagnose: logged out' ((Requests '/rpc/WEBSES/logout.asp') -eq 1)
 $code = Launch $login @()
 Check 'launch: exit 0' ($code -eq 0)
 $expected = '-apptype', 'JViewer', '-hostname', '127.0.0.1', '-title', 'Server & Console - fake', '-kvmtoken',
-  'TokenQ1w2E3r4T5y6U7i8', '-kvmport', '7578', '-webcookie', 'CookieA1b2C3d4E5f6G7h8'
+  'TokenQ1w2E3r4T5y6U7i8', '-kvmsecure', '0', '-kvmport', '7578', '-vmsecure', '0', '-cdstate', '1', '-fdstate', '1',
+  '-hdstate', '1', '-cdport', '5120', '-fdport', '5122', '-hdport', '5123', '-cdnum', '1', '-fdnum', '1', '-hdnum', '1',
+  '-userpriv', '255', '-lang', 'EN', '-keyboardlayout', 'EN', '-webcookie', 'CookieA1b2C3d4E5f6G7h8'
 Check 'launch: viewer got exactly the launch file''s arguments' (((Get-Content "$t\args") -join '|') -eq ($expected -join '|'))
-Check "launch: the BMC's Windows library unpacked" (Test-Path "$t\local\megarac-console\cache\127.0.0.1_$port\lib\javacdromwrapper.dll")
+$dll = "$t\local\megarac-console\cache\127.0.0.1_$port\lib\javacdromwrapper.dll"
+Check "launch: the BMC's Windows library unpacked" (Test-Path $dll)
+Check 'launch: the 64-bit library, not the one in Win32.jar' ((Test-Path $dll) -and (Get-Content $dll) -eq 'dll')
 Check 'launch: logged out' ((Requests '/rpc/WEBSES/logout.asp') -eq 2)
 $saved = "$t\local\megarac-console\login-127.0.0.1_$port.txt"
 Check 'launch: login saved with DPAPI, not in clear' ((Test-Path $saved) -and (NoSecrets $saved))
