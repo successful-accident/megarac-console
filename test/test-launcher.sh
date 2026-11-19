@@ -5,8 +5,9 @@
 # Installs MegaRAC Console with install.sh into a throwaway home, runs it against
 # fake_bmc.py, and checks what it sends, keeps and prints: the login body, the
 # session headers, the jars, the viewer's command line, logout exactly once, the
-# error paths, legacy TLS and --diagnose. On macOS this uses the real Keychain;
-# the entries it makes are deleted at the end.
+# error paths, legacy TLS and --diagnose. It uses the real login store, the
+# Keychain on macOS or the Secret Service where secret-tool is installed; the
+# entries it makes are deleted at the end.
 #   test/test-launcher.sh [JAVA_HOME]     a Java 8 JDK; default $JAVA_HOME
 # Needs python3, openssl, curl and a C compiler.
 set -euo pipefail
@@ -20,10 +21,14 @@ HOSTS=()
 # shellcheck disable=SC2317 # called by the EXIT trap
 cleanup() {
   [ -z "$BMC_PID" ] || kill "$BMC_PID" 2>/dev/null
-  if [ "$(uname)" = Darwin ]; then
-    for h in ${HOSTS[@]+"${HOSTS[@]}"}; do
+  for h in ${HOSTS[@]+"${HOSTS[@]}"}; do
+    if [ "$(uname)" = Darwin ]; then
       security delete-generic-password -s "megarac-console:$h" >/dev/null 2>&1 || true
-    done
+    elif command -v secret-tool >/dev/null 2>&1; then
+      secret-tool clear service "megarac-console:$h" 2>/dev/null || true
+    fi
+  done
+  if [ "$(uname)" = Darwin ]; then
     defaults delete com.apple.java.util.prefs /megarac-console-test/ >/dev/null 2>&1 || true
   fi
   rm -rf "$T"
@@ -58,7 +63,9 @@ cp "$T/served/full/Win64.jar" "$T/served/full/Mac64.jar"
 openssl req -x509 -newkey rsa:2048 -nodes -days 2 -subj /CN=fake-bmc \
   -keyout "$T/key.pem" -out "$T/cert.pem" 2>/dev/null
 
-export HOME="$T/home" STUB_ARGS_FILE="$T/viewer-args"
+# Java gets the throwaway home through user.home. HOME itself stays: the Keychain
+# tool finds the user's keychain through it, and stalls without one.
+export STUB_ARGS_FILE="$T/viewer-args"
 # Its own preferences node too: on macOS and Windows, prefs ignore user.home.
 export JAVA_TOOL_OPTIONS="-Djava.awt.headless=true -Duser.home=$T/home -Djava.util.prefs.userRoot=$T/prefs -Dmegarac.prefs=megarac-console-test"
 
@@ -136,6 +143,9 @@ check "normal: viewer loaded all three media libraries" [ "$(grep -c '^LOADED:' 
 check "normal: logged out once" [ "$(requests /rpc/WEBSES/logout.asp)" = 1 ]
 check "normal: no secret in output or log" no_secrets "$T/out" "$T/err" "$LOG"
 if [ "$(uname)" = Darwin ]; then
+  keychain_has() { security find-generic-password -s "megarac-console:$HOST" -a admin >/dev/null 2>&1; }
+  check "Keychain: the login was saved" keychain_has
+  keychain_has || sed 's/^/    /' "$T/err" # the launcher says why
   launch ""
   check "Keychain: the saved login is used, nothing asked" [ "$RC" = 0 ]
 fi
