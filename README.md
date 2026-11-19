@@ -1,33 +1,74 @@
-# MegaRAC Console
+<div align="center">
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/readme/banner-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="assets/readme/banner-light.svg">
+  <img alt="MegaRAC Console: opens the Java remote console of older AMI MegaRAC SP BMCs, with no browser and no Java Web Start" src="assets/readme/banner-light.svg" width="100%">
+</picture>
+
+<br>
+
+<a href="https://github.com/successful-accident/megarac-console/actions/workflows/test.yml"><img alt="Tests" src="https://img.shields.io/github/actions/workflow/status/successful-accident/megarac-console/test.yml?branch=main&style=flat-square&label=tests&labelColor=162033"></a>
+<a href="LICENSE"><img alt="License: GPL-3.0-or-later" src="https://img.shields.io/badge/license-GPL--3.0--or--later-5aa7f0?style=flat-square&labelColor=162033"></a>
+<a href="#install"><img alt="Needs a Java 8 JDK" src="https://img.shields.io/badge/needs-Java%208%20JDK-ffb547?style=flat-square&labelColor=162033"></a>
+
+<a href="#install">Install</a> &nbsp;·&nbsp;
+<a href="#use">Use</a> &nbsp;·&nbsp;
+<a href="#troubleshooting">Troubleshooting</a> &nbsp;·&nbsp;
+<a href="#platform-status">Platforms</a> &nbsp;·&nbsp;
+<a href="#how-it-works">How it works</a> &nbsp;·&nbsp;
+<a href="#development">Development</a>
+
+</div>
+
+<br>
 
 Opens the Java remote console (KVM) of older AMI MegaRAC SP BMCs on today's
 macOS, Linux, FreeBSD and Windows, with no browser and no Java Web Start.
 
 These BMCs offer their console only as a Java Web Start launch file, which no
 current browser or Java will run. MegaRAC Console does the launch itself:
-1. It logs in to the BMC's web API.
-2. It fetches the launch file and the viewer jars the BMC serves.
-3. It runs the viewer on Java 8, with fixes:
-   - The picture scales to the window, and the window reopens at its last size.
-   - Pause then Resume redraws the whole screen.
-   - An ISO image can be mounted as the server's virtual CD at launch.
-   - Caps Lock takes one press on macOS.
-4. Except on Windows, which uses the BMC's own media libraries, the viewer's media
-   libraries are replaced by `src/media.c`, built for your machine at install. The
-   BMC's own libraries don't load on Apple silicon, Linux on ARM or FreeBSD.
-   `media.c` mounts ISO images.
 
-It suits BMCs whose web interface has a "Launch KVM" or "Java console" button
-that downloads a `jviewer.jnlp` file. Newer MegaRAC SP-X firmware has an HTML5
-console in the browser and doesn't need this.
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/readme/flow-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="assets/readme/flow-light.svg">
+  <img alt="1. Log in to the BMC's web API. 2. Fetch the launch file and the viewer jars the BMC serves. 3. Launch the viewer on Java 8, wrapped by Fit, with media.c. 4. Log out, always, even after a crash or a stop." src="assets/readme/flow-light.svg" width="100%">
+</picture>
+
+The viewer runs with fixes:
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/readme/features-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="assets/readme/features-light.svg">
+  <img alt="The picture scales to the window, and the window reopens at its last size. Pause then Resume redraws the whole screen. An ISO image can be mounted as the server's virtual CD at launch. Caps Lock takes one press on macOS. media.c, built at install, runs on Apple silicon, Linux on ARM and FreeBSD. The log never holds the password, the session cookie or the tokens." src="assets/readme/features-light.svg" width="100%">
+</picture>
+
+Except on Windows, which uses the BMC's own media libraries, the viewer's media
+libraries are replaced by `src/media.c`, built for your machine at install. The
+BMC's own libraries don't load on Apple silicon, Linux on ARM or FreeBSD.
+`media.c` mounts ISO images.
+
+> [!NOTE]
+> It suits BMCs whose web interface has a "Launch KVM" or "Java console" button
+> that downloads a `jviewer.jnlp` file. Newer MegaRAC SP-X firmware has an HTML5
+> console in the browser and doesn't need this.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/readme/divider-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="assets/readme/divider-light.svg">
+  <img alt="" src="assets/readme/divider-light.svg" width="100%">
+</picture>
 
 ## Install
 
-Every platform needs a **Java 8 JDK**: not a newer Java, which the viewer
-predates, and not a JRE, since the launcher compiles a small wrapper against
-your BMC's viewer.
+> [!IMPORTANT]
+> Every platform needs a **Java 8 JDK**: not a newer Java, which the viewer
+> predates, and not a JRE, since the launcher compiles a small wrapper against
+> your BMC's viewer.
 
-### macOS (Apple silicon or Intel)
+<details open>
+<summary><b>macOS</b> &nbsp;·&nbsp; Apple silicon or Intel</summary>
+
 ```sh
 brew install --cask zulu@8
 xcode-select --install          # only if there is no C compiler yet
@@ -36,7 +77,11 @@ cd megarac-console && ./install.sh
 ```
 This installs `/Applications/MegaRAC Console.app`.
 
-### Linux
+</details>
+
+<details>
+<summary><b>Linux</b> &nbsp;·&nbsp; x86_64 or aarch64</summary>
+
 Install a Java 8 JDK with its desktop libraries (not the "headless" package), a C
 compiler, and optionally `secret-tool` to keep the login:
 
@@ -54,7 +99,11 @@ cd megarac-console && ./install.sh
 ```
 This installs `~/.local/bin/megarac-console` and an application-menu entry.
 
-### FreeBSD
+</details>
+
+<details>
+<summary><b>FreeBSD</b> &nbsp;·&nbsp; amd64</summary>
+
 ```sh
 pkg install openjdk8 git libsecret
 git clone https://github.com/successful-accident/megarac-console
@@ -64,7 +113,11 @@ The C compiler is in the base system. As the openjdk8 package says, Java needs
 `fdesc /dev/fd fdescfs rw 0 0` and `proc /proc procfs rw 0 0` in `/etc/fstab`,
 then `mount -a`.
 
-### Windows
+</details>
+
+<details>
+<summary><b>Windows</b> &nbsp;·&nbsp; x64, or ARM64 under emulation</summary>
+
 ```powershell
 winget install --id EclipseAdoptium.Temurin.8.JDK -e
 git clone https://github.com/successful-accident/megarac-console
@@ -74,6 +127,8 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1
 This adds **MegaRAC Console** to the Start menu. On ARM64 Windows the same x64
 JDK runs under emulation. Windows uses the BMC's own media libraries, so it needs
 no C compiler.
+
+</details>
 
 To update on any platform, `git pull`, then run the installer again. To install
 with a particular JDK, set `JAVA_HOME` (Windows: `-JavaHome <dir>`). The installed
@@ -131,22 +186,55 @@ command line, so other users of the computer can't see them in a process list.
 (If Fit can't be used with your BMC's viewer, the viewer has to take them as
 arguments.)
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/readme/divider-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="assets/readme/divider-light.svg">
+  <img alt="" src="assets/readme/divider-light.svg" width="100%">
+</picture>
+
 ## Troubleshooting
 
-- **Older BMCs speak only TLS 1.0 or 1.1, with old keys,** which Java 8 now
-  refuses. When the first connection fails, MegaRAC Console starts again with
-  `src/legacy-tls.security`, which allows them, and remembers that for the BMC.
-  The BMC's self-signed certificate is never checked.
-- **"does not compile against this viewer":** another firmware's viewer differs
-  from the one `src/Fit.java` was written for. The viewer then runs without Fit's
-  fixes. A `--diagnose` report in an issue helps make Fit work with it.
-- **FreeBSD:** the viewer was written for Windows, Linux and macOS. If it misbehaves,
-  try `MEGARAC_JAVA_OPTS=-Dos.name=Linux`.
-- **Linux on Wayland** needs XWayland. Java 8 ignores desktop scaling; use
-  `MEGARAC_JAVA_OPTS=-Dsun.java2d.uiScale=2`.
-- **The BMC allows only four or five web sessions.** MegaRAC Console always logs
-  out, including when the viewer crashes or the launcher is stopped. A session
-  leaked by something else times out on the BMC.
+<details>
+<summary><b>Older BMCs speak only TLS 1.0 or 1.1, with old keys,</b> which Java 8 now refuses.</summary>
+
+When the first connection fails, MegaRAC Console starts again with
+`src/legacy-tls.security`, which allows them, and remembers that for the BMC.
+The BMC's self-signed certificate is never checked.
+
+</details>
+
+<details>
+<summary><b>"does not compile against this viewer"</b></summary>
+
+Another firmware's viewer differs from the one `src/Fit.java` was written for.
+The viewer then runs without Fit's fixes. A `--diagnose` report in an issue
+helps make Fit work with it.
+
+</details>
+
+<details>
+<summary><b>FreeBSD:</b> the viewer misbehaves</summary>
+
+The viewer was written for Windows, Linux and macOS. If it misbehaves, try
+`MEGARAC_JAVA_OPTS=-Dos.name=Linux`.
+
+</details>
+
+<details>
+<summary><b>Linux on Wayland</b></summary>
+
+It needs XWayland. Java 8 ignores desktop scaling; use
+`MEGARAC_JAVA_OPTS=-Dsun.java2d.uiScale=2`.
+
+</details>
+
+<details>
+<summary><b>The BMC allows only four or five web sessions.</b></summary>
+
+MegaRAC Console always logs out, including when the viewer crashes or the
+launcher is stopped. A session leaked by something else times out on the BMC.
+
+</details>
 
 ## Platform status
 
@@ -171,6 +259,12 @@ Not yet confirmed on any machine: the viewer's Full Screen mode.
 
 Please open an issue with a `--diagnose` report for any other board, whether it
 works or not.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/readme/divider-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="assets/readme/divider-light.svg">
+  <img alt="" src="assets/readme/divider-light.svg" width="100%">
+</picture>
 
 ## How it works
 
@@ -215,6 +309,9 @@ them from the Intel library, after checking that `media.c` matches it on both
 architectures. `--diagnose` saves `Mac64.jar` and the viewer jars in the
 cache's `diagnose` folder.
 
+The pictures in this README are in `assets/readme/`, a dark and a light version
+of each.
+
 ## License
 
 GPL-3.0-or-later; see [LICENSE](LICENSE). Copyright (C) 2026 Jeff Morrison.
@@ -222,3 +319,7 @@ GPL-3.0-or-later; see [LICENSE](LICENSE). Copyright (C) 2026 Jeff Morrison.
 This repository never contains AMI's viewer or libraries: each BMC serves its
 own, and MegaRAC Console downloads them from your BMC to your computer at run
 time. Not affiliated with AMI; MegaRAC is a trademark of American Megatrends.
+
+<br>
+
+<p align="center"><img src="assets/megarac-console.png" width="56" alt=""></p>

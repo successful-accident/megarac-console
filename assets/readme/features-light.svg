@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 308" width="840" height="308" role="img" aria-label="What Fit and media.c add: Fits the window: The picture scales to the window, which reopens at its last size.; Pause, then Resume: Resuming after a Pause redraws the whole screen.; ISO at launch: BMC_ISO mounts an image as the server&#39;s virtual CD.; One-press Caps Lock: On macOS, Caps Lock takes a single press.; Native media library: media.c, built at install, runs on Apple silicon, ARM Linux, FreeBSD.; Secrets stay out: The log never holds the password, the session cookie or the tokens.">
+<title>What Fit and media.c add: Fits the window: The picture scales to the window, which reopens at its last size.; Pause, then Resume: Resuming after a Pause redraws the whole screen.; ISO at launch: BMC_ISO mounts an image as the server&#39;s virtual CD.; One-press Caps Lock: On macOS, Caps Lock takes a single press.; Native media library: media.c, built at install, runs on Apple silicon, ARM Linux, FreeBSD.; Secrets stay out: The log never holds the password, the session cookie or the tokens.</title>
+<g>
+  <rect x="12" y="12" width="264" height="136" rx="12" fill="#ffffff" stroke="#d3dce9"/>
+  <rect x="12.5" y="12.5" width="263" height="135" rx="12" fill="none" stroke="#2a6db5" stroke-opacity="0.7" opacity="0">
+    <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.000;0.030;0.137;0.167;1" dur="12s" repeatCount="indefinite"/>
+  </rect>
+  <rect x="32" y="32" width="36" height="36" rx="9" fill="#4b8fd6" fill-opacity="0.13"/>
+  <g transform="translate(40 40)" stroke="#2a6db5" color="#2a6db5" stroke-width="1.7"><path d="M3 8V3h5M12 3h5v5M17 12v5h-5M8 17H3v-5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g>
+  <text x="32" y="96" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', 'Noto Sans', 'DejaVu Sans', sans-serif" font-size="15.5" font-weight="700" fill="#142033">Fits the window</text>
+  <text x="32" y="117" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', 'Noto Sans', 'DejaVu Sans', sans-serif" font-size="12.5" fill="#55657e">The picture scales to the window,</text>
+  <text x="32" y="134" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', 'Noto Sans', 'DejaVu Sans', sans-serif" font-size="12.5" fill="#55657e">which reopens at its last size.</text>
+</g>
+<g>
+  <rect x="288" y="12" width="264" height="136" rx="12" fill="#ffffff" stroke="#d3dce9"/>
+  <rect x="288.5" y="12.5" width="263" height="135" rx="12" fill="none" stroke="#2a6db5" stroke-opacity="0.7" opacity="0">
+    <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.167;0.197;0.303;0.333;1" dur="12s" repeatCount="indefinite"/>
+  </rect>
+  <rect x="308" y="32" width="36" height="36" rx="9" fill="#4b8fd6" fill-opacity="0.13"/>
+  <g transform="translate(316 40)" stroke="#2a6db5" color="#2a6db5" stroke-width="1.7"><rect x="2.5" y="4" width="3" height="12" rx="0.8" fill="currentColor" stroke="none"/><rect x="7.5" y="4" width="3" height="12" rx="0.8" fill="currentColor" stroke="none"/><path d="M13 4.5l5.5 5.5-5.5 5.5z" stroke-linejoin="round"/></g>
+  <text x="308" y="96" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', 'Noto Sans', 'DejaVu Sans', sans-serif" font-size="15.5" font-weight="700" fill="#142033">Pause, then Resume</text>
+  <text x="308" y="117" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', 'Noto Sans', 'DejaVu Sans', sans-serif" font-size="12.5" fill="#55657e">Resuming after a Pause redraws</text>
+  <text x="308" y="134" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', 'Noto Sans', 'DejaVu Sans', sans-serif" font-size="12.5" fill="#55657e">the whole screen.</text>
+</g>
+<g>
+  <rect x="564" y="12" width="264" height="136" rx="12" fill="#ffffff" stroke="#d3dce9"/>
+  <rect x="564.5" y="12.5" width="263" height="135" rx="12" fill="none" stroke="#2a6db5" stroke-opacity="0.7" opacity="0">
+    <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.333;0.363;0.470;0.500;1" dur="12s" repeatCount="indefinite"/>
+  </rect>
+  <rect x="584" y="32" width="36" height="36" rx="9" fill="#4b8fd6" fill-opacity="0.13"/>
+  <g transform="translate(592 40)" stroke="#2a6db5" color="#2a6db5" stroke-width="1.7"><circle cx="10" cy="10" r="7.5" fill="none"/><circle cx="10" cy="10" r="2.2" fill="none"/></g>
+  <text x="584" y="96" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', 'Noto Sans', 'DejaVu Sans', sans-serif" font-size="15.5" font-weight="700" fill="#142033">ISO at launch</text>
+  <text x="584" y="117" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', 'Noto Sans', 'DejaVu Sans', sans-serif" font-size="12.5" fill="#55657e">BMC_ISO mounts an image as the</text>
+  <text x="584" y="134" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', 'Noto Sans', 'DejaVu Sans', sans-serif" font-size="12.5" fill="#55657e">server's virtual CD.</text>
+</g>
+<g>
+  <rect x="12" y="160" width="264" height="136" rx="12" fill="#ffffff" stroke="#d3dce9"/>
+  <rect x="12.5" y="160.5" width="263" height="135" rx="12" fill="none" stroke="#2a6db5" stroke-opacity="0.7" opacity="0">
+    <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.500;0.530;0.637;0.667;1" dur="12s" repeatCount="indefinite"/>
+  </rect>
+  <rect x="32" y="180" width="36" height="36" rx="9" fill="#4b8fd6" fill-opacity="0.13"/>
+  <g transform="translate(40 188)" stroke="#2a6db5" color="#2a6db5" stroke-width="1.7"><rect x="2" y="2" width="16" height="16" rx="3.5" fill="none"/><path d="M10 5.5l-4 4.5h2.2v2.8h3.6V10H14z" fill="none" stroke-linejoin="round"/><path d="M8 15h4" stroke-linecap="round"/></g>
+  <text x="32" y="244" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', 'Noto Sans', 'DejaVu Sans', sans-serif" font-size="15.5" font-weight="700" fill="#142033">One-press Caps Lock</text>
+  <text x="32" y="265" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', 'Noto Sans', 'DejaVu Sans', sans-serif" font-size="12.5" fill="#55657e">On macOS, Caps Lock takes a</text>
+  <text x="32" y="282" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', 'Noto Sans', 'DejaVu Sans', sans-serif" font-size="12.5" fill="#55657e">single press.</text>
+</g>
+<g>
+  <rect x="288" y="160" width="264" height="136" rx="12" fill="#ffffff" stroke="#d3dce9"/>
+  <rect x="288.5" y="160.5" width="263" height="135" rx="12" fill="none" stroke="#2a6db5" stroke-opacity="0.7" opacity="0">
+    <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.667;0.697;0.803;0.833;1" dur="12s" repeatCount="indefinite"/>
+  </rect>
+  <rect x="308" y="180" width="36" height="36" rx="9" fill="#4b8fd6" fill-opacity="0.13"/>
+  <g transform="translate(316 188)" stroke="#2a6db5" color="#2a6db5" stroke-width="1.7"><rect x="5" y="5" width="10" height="10" rx="1.6" fill="none"/><path d="M8 2.5v2.5M12 2.5v2.5M8 15v2.5M12 15v2.5M2.5 8H5M2.5 12H5M15 8h2.5M15 12h2.5" stroke-linecap="round"/></g>
+  <text x="308" y="244" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', 'Noto Sans', 'DejaVu Sans', sans-serif" font-size="15.5" font-weight="700" fill="#142033">Native media library</text>
+  <text x="308" y="265" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', 'Noto Sans', 'DejaVu Sans', sans-serif" font-size="12.5" fill="#55657e">media.c, built at install, runs on</text>
+  <text x="308" y="282" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', 'Noto Sans', 'DejaVu Sans', sans-serif" font-size="12.5" fill="#55657e">Apple silicon, ARM Linux, FreeBSD.</text>
+</g>
+<g>
+  <rect x="564" y="160" width="264" height="136" rx="12" fill="#ffffff" stroke="#d3dce9"/>
+  <rect x="564.5" y="160.5" width="263" height="135" rx="12" fill="none" stroke="#2a6db5" stroke-opacity="0.7" opacity="0">
+    <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.833;0.863;0.970;1.000;1" dur="12s" repeatCount="indefinite"/>
+  </rect>
+  <rect x="584" y="180" width="36" height="36" rx="9" fill="#4b8fd6" fill-opacity="0.13"/>
+  <g transform="translate(592 188)" stroke="#2a6db5" color="#2a6db5" stroke-width="1.7"><rect x="3.5" y="8.5" width="13" height="9" rx="2" fill="none"/><path d="M6.5 8.5V6a3.5 3.5 0 0 1 7 0v2.5" fill="none"/><circle cx="10" cy="13" r="1.2" fill="currentColor" stroke="none"/></g>
+  <text x="584" y="244" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', 'Noto Sans', 'DejaVu Sans', sans-serif" font-size="15.5" font-weight="700" fill="#142033">Secrets stay out</text>
+  <text x="584" y="265" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', 'Noto Sans', 'DejaVu Sans', sans-serif" font-size="12.5" fill="#55657e">The log never holds the password,</text>
+  <text x="584" y="282" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', 'Noto Sans', 'DejaVu Sans', sans-serif" font-size="12.5" fill="#55657e">the session cookie or the tokens.</text>
+</g>
+</svg>

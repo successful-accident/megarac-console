@@ -1,8 +1,8 @@
 # SPDX-FileCopyrightText: 2026 Jeff Morrison
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Licensing for the files without a header: the binary icons, .gitignore and the
-# Markdown files.
+# Licensing for the files without a header: the icons, the README's pictures,
+# .gitignore and the Markdown files.
 version = 1
 
 [[annotations]]
