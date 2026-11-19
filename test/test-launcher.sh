@@ -148,16 +148,18 @@ rm -f "$STUB_ARGS_FILE"
 printf '%s' "$login" | BMC_HOST="$HOST" STUB_SLEEP=60 "$JH/bin/java" -cp "$APP/classes" MegaracConsole \
   >"$T/out" 2>"$T/err" &
 pid=$!
-for _ in $(seq 200); do grep -q '^PID:' "$T/out" 2>/dev/null && break; sleep 0.05; done
+for _ in $(seq 1200); do grep -q '^PID:' "$T/out" 2>/dev/null && break; sleep 0.05; done
 viewer="$(sed -n 's/^PID://p' "$T/out")"
-viewer_args="$(ps -o args= -p "$viewer" || true)"
+check "kill: viewer started" [ -n "$viewer" ]
+viewer_args=
+[ -z "$viewer" ] || viewer_args="$(ps -o args= -p "$viewer" || true)"
 check "argv: the viewer runs Fit" grep -q ' Fit$' <<<"$viewer_args"
 check "argv: the console token is not on the viewer's command line" bash -c "! grep -q TokenQ1w2 <<<'$viewer_args'"
 kill -TERM "$pid"
 wait "$pid" 2>/dev/null || true
 for _ in $(seq 100); do kill -0 "$viewer" 2>/dev/null || break; sleep 0.05; done
 check "kill: logged out once" [ "$(requests /rpc/WEBSES/logout.asp)" = 1 ]
-check "kill: viewer stopped" bash -c "! kill -0 '$viewer' 2>/dev/null"
+check "kill: viewer stopped" bash -c "[ -n '$viewer' ] && ! kill -0 '$viewer' 2>/dev/null"
 
 # ---- Older firmware: no CSRF token.
 start_bmc full --no-csrf
