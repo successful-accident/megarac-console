@@ -58,7 +58,12 @@ Set-Content "$t\javacdromwrapper.dll" 'dll'
 & "$jdk\bin\jar.exe" cf "$t\served\Win64.jar" -C $t javacdromwrapper.dll
 Copy-Item "$t\served\Win64.jar" "$t\served\JViewer-SOC.jar"
 Copy-Item "$t\served\Win64.jar" "$t\served\Mac64.jar"
+# Windows PowerShell 5.1 turns a native command's redirected stderr (openssl's
+# progress dots) into a terminating error under 'Stop'; check the result instead.
+$ErrorActionPreference = 'Continue'
 & openssl req -x509 -newkey rsa:2048 -nodes -days 2 -subj /CN=fake-bmc -keyout "$t\key.pem" -out "$t\cert.pem" 2>$null
+$ErrorActionPreference = 'Stop'
+if (-not (Test-Path "$t\cert.pem")) { throw 'openssl could not make the test certificate' }
 $bmc = Start-Process python -NoNewWindow -PassThru -ArgumentList "`"$PSScriptRoot\fake_bmc.py`"",
   "`"$t\port`"", "`"$t\cert.pem`"", "`"$t\key.pem`"", "`"$t\served`"", "`"$t\requests`""
 foreach ($i in 1..300) { if ((Test-Path "$t\port") -and (Get-Content "$t\port")) { break }; Start-Sleep -Milliseconds 100 }
