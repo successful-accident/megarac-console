@@ -536,13 +536,9 @@ public class MegaracConsole {
 
     static void saveLogin(String[] login) {
         if (MAC) {
-            // Through stdin, so the password is never on a command line. If security reads
-            // it back differently, fall back to the argument form.
-            run("add-generic-password -U -s " + quote(service()) + " -a " + quote(login[0]) + " -w " + quote(login[1])
-                + "\nexit\n", "security", "-i");
-            String[] back = savedLogin();
-            if ((back == null || !Arrays.equals(back, login))
-                && run(null, "security", "add-generic-password", "-U", "-s", service(), "-a", login[0], "-w", login[1]) == null)
+            // security takes a password only as an argument or typed at a terminal, so it is on
+            // this one command line for the moment the command runs, as it always was here.
+            if (run(null, "security", "add-generic-password", "-U", "-s", service(), "-a", login[0], "-w", login[1]) == null)
                 say("could not save the login in the Keychain");
         } else if (WIN) {
             String blob = run(login[1] + "\n", "powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
@@ -580,10 +576,6 @@ public class MegaracConsole {
         System.out.println("forgot " + service());
     }
 
-    static String quote(String s) {
-        return "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
-    }
-
     static String chomp(String s) {
         return s.endsWith("\r\n") ? s.substring(0, s.length() - 2) : s.endsWith("\n") ? s.substring(0, s.length() - 1) : s;
     }
@@ -591,8 +583,11 @@ public class MegaracConsole {
     // Runs a helper with a 20 s limit; its output, or null if it is missing or fails.
     static String run(String input, String... cmd) {
         try {
-            Process p = new ProcessBuilder(cmd).redirectError(ProcessBuilder.Redirect.to(new File(WIN ? "NUL" : "/dev/null")))
-                .start();
+            ProcessBuilder pb = new ProcessBuilder(cmd).redirectError(ProcessBuilder.Redirect.to(new File(WIN ? "NUL" : "/dev/null")));
+            // Windows PowerShell started from PowerShell 7 inherits 7's module path, then fails to
+            // load ConvertTo-SecureString from 7's modules. Without it, it uses its own.
+            pb.environment().remove("PSModulePath");
+            Process p = pb.start();
             try (OutputStream o = p.getOutputStream()) {
                 if (input != null) o.write(input.getBytes(UTF_8));
             }
