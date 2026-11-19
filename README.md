@@ -10,7 +10,8 @@
 
 <a href="https://github.com/successful-accident/megarac-console/actions/workflows/test.yml"><img alt="Tests" src="https://img.shields.io/github/actions/workflow/status/successful-accident/megarac-console/test.yml?branch=main&style=flat-square&label=tests&labelColor=162033"></a>
 <a href="LICENSE"><img alt="License: GPL-3.0-or-later" src="https://img.shields.io/badge/license-GPL--3.0--or--later-5aa7f0?style=flat-square&labelColor=162033"></a>
-<a href="#install"><img alt="Needs a Java 8 JDK" src="https://img.shields.io/badge/needs-Java%208%20JDK-ffb547?style=flat-square&labelColor=162033"></a>
+<a href="https://github.com/successful-accident/megarac-console/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/successful-accident/megarac-console?style=flat-square&label=release&labelColor=162033&color=ffb547"></a>
+<a href="#install"><img alt="Java 8 included" src="https://img.shields.io/badge/Java%208-included-7fd8a6?style=flat-square&labelColor=162033"></a>
 
 <a href="#install">Install</a> &nbsp;·&nbsp;
 <a href="#use">Use</a> &nbsp;·&nbsp;
@@ -40,12 +41,12 @@ The viewer runs with fixes:
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/readme/features-dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="assets/readme/features-light.svg">
-  <img alt="The picture scales to the window, and the window reopens at its last size. Pause then Resume redraws the whole screen. An ISO image can be mounted as the server's virtual CD at launch. Caps Lock takes one press on macOS. media.c, built at install, runs on Apple silicon, Linux on ARM and FreeBSD. The log never holds the password, the session cookie or the tokens." src="assets/readme/features-light.svg" width="100%">
+  <img alt="The picture scales to the window, and the window reopens at its last size. Pause then Resume redraws the whole screen. An ISO image can be mounted as the server's virtual CD at launch. Caps Lock takes one press on macOS. media.c replaces AMI's libraries and runs on Apple silicon, Linux on ARM and FreeBSD. The log never holds the password, the session cookie or the tokens." src="assets/readme/features-light.svg" width="100%">
 </picture>
 
 Except on Windows, which uses the BMC's own media libraries, the viewer's media
-libraries are replaced by `src/media.c`, built for your machine at install. The
-BMC's own libraries don't load on Apple silicon, Linux on ARM or FreeBSD.
+libraries are replaced by `src/media.c`, built for each platform. The BMC's own
+libraries don't load on Apple silicon, Linux on ARM or FreeBSD.
 `media.c` mounts ISO images.
 
 > [!NOTE]
@@ -61,121 +62,141 @@ BMC's own libraries don't load on Apple silicon, Linux on ARM or FreeBSD.
 
 ## Install
 
-> [!IMPORTANT]
-> Every platform needs a **Java 8 JDK**: not a newer Java, which the viewer
-> predates, and not a JRE, since the launcher compiles a small wrapper against
-> your BMC's viewer.
+One command installs the latest release, and running it again updates it. Each
+release carries its own Java 8, so there's nothing to install first.
 
-<details open>
-<summary><b>macOS</b> &nbsp;·&nbsp; Apple silicon or Intel</summary>
-
+**macOS** (Apple silicon or Intel) **and Linux** (x86_64 or aarch64):
 ```sh
-brew install --cask zulu@8
-xcode-select --install          # only if there is no C compiler yet
-git clone https://github.com/successful-accident/megarac-console
-cd megarac-console && ./install.sh
+curl -fsSL https://raw.githubusercontent.com/successful-accident/megarac-console/main/install.sh | sh
 ```
-This installs `/Applications/MegaRAC Console.app`.
+
+**Windows** (x64, or ARM64 under emulation), in PowerShell:
+```powershell
+irm https://raw.githubusercontent.com/successful-accident/megarac-console/main/install.ps1 | iex
+```
+
+Then open **MegaRAC Console** from Launchpad, the application menu or the Start
+menu, or run `megarac-console` in a new terminal.
+
+<details>
+<summary><b>Download a package instead</b></summary>
+
+<br>
+
+| Platform | Package | To run it |
+|---|---|---|
+| macOS, Apple silicon | [megarac-console-macos-arm64.dmg](https://github.com/successful-accident/megarac-console/releases/latest/download/megarac-console-macos-arm64.dmg) | Drag the app to Applications |
+| macOS, Intel | [megarac-console-macos-x64.dmg](https://github.com/successful-accident/megarac-console/releases/latest/download/megarac-console-macos-x64.dmg) | Drag the app to Applications |
+| Linux x86_64 | [megarac-console-linux-x86_64.tar.gz](https://github.com/successful-accident/megarac-console/releases/latest/download/megarac-console-linux-x86_64.tar.gz) | `tar xzf` it, then run `megarac-console/megarac-console` |
+| Linux aarch64 | [megarac-console-linux-aarch64.tar.gz](https://github.com/successful-accident/megarac-console/releases/latest/download/megarac-console-linux-aarch64.tar.gz) | the same |
+| Windows x64 | [megarac-console-windows-x64-setup.exe](https://github.com/successful-accident/megarac-console/releases/latest/download/megarac-console-windows-x64-setup.exe) | Run it; it installs for you alone, with no administrator rights |
+
+The packages aren't signed, so the first launch of a downloaded one gets a warning:
+- macOS blocks the app. Open **System Settings → Privacy & Security** and choose
+  **Open Anyway**. The install command doesn't hit this, because `curl` doesn't
+  mark what it downloads.
+- Windows SmartScreen says it protected your PC. Choose **More info → Run anyway**.
 
 </details>
 
 <details>
-<summary><b>Linux</b> &nbsp;·&nbsp; x86_64 or aarch64</summary>
+<summary><b>FreeBSD</b> &nbsp;·&nbsp; amd64, built from source</summary>
 
-Install a Java 8 JDK with its desktop libraries (not the "headless" package), a C
-compiler, and optionally `secret-tool` to keep the login:
+<br>
 
-| Distribution | Packages |
+There's no FreeBSD package, so the install command builds the `main` branch with
+the system's Java 8 and C compiler:
+```sh
+pkg install openjdk8 libsecret
+fetch -o - https://raw.githubusercontent.com/successful-accident/megarac-console/main/install.sh | sh
+```
+As the openjdk8 package says, Java needs `fdesc /dev/fd fdescfs rw 0 0` and
+`proc /proc procfs rw 0 0` in `/etc/fstab`, then `mount -a`.
+
+</details>
+
+<details>
+<summary><b>Build from source</b> &nbsp;·&nbsp; any platform</summary>
+
+<br>
+
+Run from a git checkout, the same scripts build MegaRAC Console with a **Java 8
+JDK** on your machine instead of downloading a release. It has to be a JDK, not
+a JRE, and not a newer Java: the launcher compiles a small wrapper against your
+BMC's viewer. macOS and Linux also need a C compiler. The installed app looks
+for Java 8 at every launch, so updating Java doesn't break it.
+
+```sh
+git clone https://github.com/successful-accident/megarac-console
+cd megarac-console && ./install.sh
+```
+On Windows, run `powershell -ExecutionPolicy Bypass -File .\install.ps1` in the
+checkout instead. Its Start-menu shortcut runs `launch.ps1`, which takes `-Iso`,
+`-Diagnose` and `-Forget`.
+
+| Platform | Java 8 JDK and compiler |
 |---|---|
+| macOS | `brew install --cask zulu@8`, and `xcode-select --install` if there's no C compiler yet |
 | Ubuntu | `openjdk-8-jdk gcc libsecret-tools` |
 | Debian 12 and later | Temurin 8 from [Adoptium's apt repository](https://adoptium.net/installation/linux/) (`temurin-8-jdk`), plus `gcc libsecret-tools` |
 | Fedora | Temurin 8 from Adoptium's rpm repository, plus `gcc libsecret` |
 | Arch | `jdk8-openjdk gcc libsecret` |
+| Windows | `winget install --id EclipseAdoptium.Temurin.8.JDK -e` |
 
-Then:
-```sh
-git clone https://github.com/successful-accident/megarac-console
-cd megarac-console && ./install.sh
-```
-This installs `~/.local/bin/megarac-console` and an application-menu entry.
+On Linux, install the JDK with its desktop libraries, not the "headless" package.
+`JAVA_HOME` picks a particular JDK (Windows: `-JavaHome <dir>`). To update, run
+`git pull`, then the installer again.
 
 </details>
-
-<details>
-<summary><b>FreeBSD</b> &nbsp;·&nbsp; amd64</summary>
-
-```sh
-pkg install openjdk8 git libsecret
-git clone https://github.com/successful-accident/megarac-console
-cd megarac-console && ./install.sh
-```
-The C compiler is in the base system. As the openjdk8 package says, Java needs
-`fdesc /dev/fd fdescfs rw 0 0` and `proc /proc procfs rw 0 0` in `/etc/fstab`,
-then `mount -a`.
-
-</details>
-
-<details>
-<summary><b>Windows</b> &nbsp;·&nbsp; x64, or ARM64 under emulation</summary>
-
-```powershell
-winget install --id EclipseAdoptium.Temurin.8.JDK -e
-git clone https://github.com/successful-accident/megarac-console
-cd megarac-console
-powershell -ExecutionPolicy Bypass -File .\install.ps1
-```
-This adds **MegaRAC Console** to the Start menu. On ARM64 Windows the same x64
-JDK runs under emulation. Windows uses the BMC's own media libraries, so it needs
-no C compiler.
-
-</details>
-
-To update on any platform, `git pull`, then run the installer again. To install
-with a particular JDK, set `JAVA_HOME` (Windows: `-JavaHome <dir>`). The installed
-app looks for Java 8 at every launch: `MEGARAC_JAVA_HOME` if set, then the JDK it
-was installed with and the system's usual places.
 
 ## Use
 
 Open MegaRAC Console. The first run asks for the BMC's address, user and
 password. The login is saved after the BMC accepts it:
 - macOS: the Keychain.
-- Linux and FreeBSD: the Secret Service, via `secret-tool`. Without it, the
-  login is asked for every time.
+- Linux and FreeBSD: the Secret Service, via `secret-tool`
+  (Debian and Ubuntu: `libsecret-tools`). Without it, the login is asked for
+  every time.
 - Windows: a file encrypted for your Windows account (DPAPI).
 
-From a terminal:
+The same command works on every platform:
 
 | Command | What it does |
 |---|---|
 | `megarac-console` | open the console |
-| `BMC_HOST=<address> megarac-console` | open a different BMC than the saved one |
-| `BMC_ISO=<image.iso> megarac-console` | mount that image as the server's virtual CD once video starts; the log shows how much the server has read |
+| `megarac-console --host <address>` | open a different BMC than the saved one, without saving it |
+| `megarac-console --iso <image.iso>` | mount that image as the server's virtual CD once video starts; the log shows how much the server has read |
 | `megarac-console --diagnose` | check TLS, the login and the launch file, then print a report with every secret removed; attach it to a bug report |
 | `megarac-console forget` | delete the saved login and address |
 
-On macOS, the command is `"/Applications/MegaRAC Console.app/Contents/MacOS/megarac-console"`.
-On Windows, run `powershell -ExecutionPolicy Bypass -File "$env:LOCALAPPDATA\megarac-console\app\launch.ps1"`
-with `-Iso <image.iso>`, `-Diagnose` or `-Forget`. The viewer's own Media menu can also
-mount an image at any time.
+The installer puts the command in `~/.local/bin` on macOS and Linux, and says so
+if that folder isn't on your `PATH`. On Windows it's on `PATH` in any terminal
+opened after the install. The viewer's own Media menu can also mount an image at
+any time. The environment variables `BMC_HOST` and `BMC_ISO` do the same as
+`--host` and `--iso`.
 
 `MEGARAC_JAVA_OPTS` passes extra options to the viewer's Java, for example
-`-Dsun.java2d.uiScale=2` on a HiDPI Linux screen.
+`-Dsun.java2d.uiScale=2` on a HiDPI Linux screen. On macOS and Linux,
+`MEGARAC_JAVA_HOME` runs it on a different Java 8 than the one it came with.
 
 ## Where things are kept, and uninstalling
 
 | | macOS | Linux and FreeBSD | Windows |
 |---|---|---|---|
-| App | `/Applications/MegaRAC Console.app` | `~/.local/share/megarac-console`, `~/.local/bin/megarac-console`, `~/.local/share/applications/megarac-console.desktop` | `%LOCALAPPDATA%\megarac-console\app`, the Start-menu shortcut |
+| App | `/Applications/MegaRAC Console.app`, `~/.local/bin/megarac-console` | `~/.local/share/megarac-console`, `~/.local/bin/megarac-console`, `~/.local/share/applications/megarac-console.desktop` | `%LOCALAPPDATA%\megarac-console\app`, the Start-menu shortcut, an entry on your `PATH` |
 | Viewer jars from the BMC | `~/Library/Caches/megarac-console` | `~/.cache/megarac-console` | `%LOCALAPPDATA%\megarac-console\cache` |
 | Log of the last run | `~/Library/Logs/megarac-console.log` | `~/.local/state/megarac-console/megarac-console.log` | `%LOCALAPPDATA%\megarac-console\megarac-console.log` |
 | Saved login | Keychain, `megarac-console:<address>` | Secret Service, `megarac-console:<address>` | `%LOCALAPPDATA%\megarac-console\login-<address>.txt` |
 | Address and window size | Java preferences, node `megarac-console` | `~/.java/.userPrefs/megarac-console` | registry, `HKCU\Software\JavaSoft\Prefs\megarac-console` |
 
 To uninstall:
-1. Delete each saved login: `BMC_HOST=<address> megarac-console forget` for every
+1. Delete each saved login: `megarac-console --host <address> forget` for every
    BMC you used.
-2. Run `./install.sh --uninstall` (Windows: `.\install.ps1 -Uninstall`).
+2. Remove the app:
+   - macOS and Linux: `curl -fsSL https://raw.githubusercontent.com/successful-accident/megarac-console/main/install.sh | sh -s -- --uninstall`,
+     or `./install.sh --uninstall` in a checkout.
+   - Windows: **Settings → Apps → MegaRAC Console → Uninstall**, or
+     `.\install.ps1 -Uninstall` in a checkout.
 3. Delete the cache, the log, and the address and window size from the table.
    On Windows that means the whole `%LOCALAPPDATA%\megarac-console` folder, plus
    `Remove-Item -Recurse HKCU:\Software\JavaSoft\Prefs\megarac-console`.
@@ -238,15 +259,16 @@ launcher is stopped. A session leaked by something else times out on the BMC.
 
 ## Platform status
 
-"CI" means built and tested against a fake BMC on GitHub's runners on every push.
-"BMC" means checked by hand against a real BMC.
+"CI" means built, packaged, and tested against a fake BMC on GitHub's runners on
+every push, both from source and as the release package. "BMC" means checked by
+hand against a real BMC.
 
 | Platform | Media library | Status |
 |---|---|---|
 | macOS, Apple silicon | `media.c` | CI, and BMC: the console, typing, and booting the server from a mounted ISO |
 | macOS, Intel | `media.c` | CI |
 | Linux x86_64 and aarch64 | `media.c` | CI |
-| FreeBSD amd64 | `media.c` | builds; untested |
+| FreeBSD amd64 | `media.c` | builds from source; untested, no package |
 | Windows x64 (ARM64 under emulation) | the BMC's own | CI |
 
 Not yet confirmed on any machine: the viewer's Full Screen mode.
@@ -299,7 +321,20 @@ test/test-media.sh "$JAVA_HOME"      # media.c against the recorded replies
 test/test-launcher.sh "$JAVA_HOME"   # installs into a temporary home, runs against test/fake_bmc.py
 ```
 `test/test-windows.ps1` is the Windows counterpart; CI runs all three
-(`.github/workflows/test.yml`).
+(`.github/workflows/test.yml`). With `MEGARAC_PACKAGE=<package>`, the launcher
+tests install that release package instead and run on the Java 8 inside it.
+
+**Releases.** `.github/package.sh <JDK> <output>` builds the macOS `.dmg` or the
+Linux `.tar.gz` with that JDK inside; `.github/megarac-console.iss` is the
+Windows installer, built with Inno Setup. CI builds and tests all five on every
+push. Pushing a `v*` tag also puts them on a draft release:
+```sh
+git tag v1.0.0 && git push origin v1.0.0
+```
+Check the draft, then publish it. The install commands always fetch the latest
+published release. The packages carry Azul's Zulu 8, as current as CI's on the
+day they're built, so a new tag after each quarterly Java update keeps them
+patched.
 
 `test/expected.sha256` holds the replies `media.c` must give. They were recorded
 from `media.c` itself and are not yet re-checked against AMI's Intel library;

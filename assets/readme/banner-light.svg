@@ -65,7 +65,7 @@
     <text x="790" y="156" fill="#7fd8a6" text-anchor="end">cached</text>
   </g><g opacity="0"><animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;0.500;0.520;0.93;1" dur="12s" repeatCount="indefinite"/>
     <text x="456" y="178" fill="#5f7594">media</text>
-    <text x="514" y="178" fill="#c4e2ff">media.c, built at install</text>
+    <text x="514" y="178" fill="#c4e2ff">media.c, for every CPU</text>
     <text x="790" y="178" fill="#7fd8a6" text-anchor="end">loaded</text>
   </g><g opacity="0"><animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;0.600;0.620;0.93;1" dur="12s" repeatCount="indefinite"/>
     <text x="456" y="200" fill="#5f7594">viewer</text>

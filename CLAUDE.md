@@ -16,11 +16,17 @@ Run these before a push. CI runs them on Linux x64 and arm64, macOS arm64 and In
 - `test/test-launcher.sh "$JAVA_HOME"`: install.sh into a temporary home, then the launcher against the fake BMC.
 - `shellcheck -s sh install.sh && shellcheck test/test-launcher.sh test/test-media.sh`
 - `test/test-windows.ps1` runs only on Windows.
+- With `MEGARAC_PACKAGE=<package>`, the launcher tests install a release package and run on its Java 8. CI does both for every push; build a package with `.github/package.sh <JDK> <output>`.
+
+## Releases
+- `install.sh` and `install.ps1` build from source in a checkout and install the latest published release otherwise (`curl | sh`, `irm | iex`). The asset names in them, `test.yml`, `package.sh`, `megarac-console.iss` and the README's download table must match.
+- `install.ps1`'s release branch must never `exit`: under `iex` it closes the user's window.
 
 ## Working from a Linux container
 - macOS and Windows are tested only by CI, so push, then follow the run. A running job's steps show in `get_workflow_job`, but its log can't be fetched until the job finishes (404).
 - A failure email can be for a superseded run. Match its run number to the latest before acting on it.
-- The container's proxy settings reach Java through `JAVA_TOOL_OPTIONS` and `_JAVA_OPTIONS`, and curl through `HTTPS_PROXY`. The tests unset the first two and give curl `--noproxy '*'`. Java 8 is in `/usr/lib/jvm/java-8-openjdk-amd64`.
+- The container's proxy settings reach Java through `JAVA_TOOL_OPTIONS` and `_JAVA_OPTIONS`, and curl through `HTTPS_PROXY`. The tests unset the first two and give curl `--noproxy '*'`. Java 8 may need `apt-get install openjdk-8-jdk-headless`; it lands in `/usr/lib/jvm/java-8-openjdk-amd64`. Ubuntu's JDK has dangling symlinks (`src.zip`), so `package.sh` can't copy it as is; CI's Zulu is self-contained.
+- The auto-mode classifier blocks running a script that downloads and runs an unpinned tool (it blocked appimagetool's `continuous` build), and the GitHub REST API is unreachable from here (403).
 
 ## Platform traps
 - **macOS `security`:**

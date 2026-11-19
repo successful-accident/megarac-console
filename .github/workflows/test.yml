@@ -78,8 +78,10 @@ jobs:
       - name: the release package, with this Java 8 inside
         shell: pwsh
         run: |
-          choco install innosetup -y --no-progress
+          # Inno Setup is on GitHub's Windows images. Java 8's javac won't make its output folder.
+          New-Item -ItemType Directory -Force build\classes | Out-Null
           & "$env:JAVA_HOME\bin\javac.exe" -nowarn -encoding UTF-8 -d build\classes src\MegaracConsole.java
+          if ($LASTEXITCODE -ne 0) { exit 1 }
           $version = if ('${{ github.ref_type }}' -eq 'tag') { '${{ github.ref_name }}'.TrimStart('v') } else { '0-dev' }
           & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /Qp "/DJdk=$env:JAVA_HOME" "/DVersion=$version" "/O$PWD\dist" .github\megarac-console.iss
           if ($LASTEXITCODE -ne 0) { exit 1 }
