@@ -12,7 +12,7 @@ JSON-lines log for the test to check.
   --empty-jnlp  serve a launch file with no arguments
   --tls-max V   speak TLS no newer than V (1.1 for the legacy-TLS test)
 """
-import argparse, http.server, json, ssl, sys, urllib.parse, warnings
+import argparse, http.server, json, socketserver, ssl, sys, urllib.parse, warnings
 
 USER, PASSWORD = "admin", "pa ss&=+%'*~é"
 COOKIE, CSRF, TOKEN = "CookieA1b2C3d4E5f6G7h8", "CsrfZ9y8X7w6V5", "TokenQ1w2E3r4T5y6U7i8"
@@ -102,7 +102,15 @@ if o.tls_max:
     ctx.minimum_version = ssl.TLSVersion.TLSv1
     ctx.maximum_version = {"1.0": ssl.TLSVersion.TLSv1, "1.1": ssl.TLSVersion.TLSv1_1}[o.tls_max]
     ctx.set_ciphers("DEFAULT:@SECLEVEL=0")
-server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), BMC)
+class Server(http.server.ThreadingHTTPServer):
+    # HTTPServer's own server_bind also looks the address up in DNS (socket.getfqdn),
+    # which takes half a minute on GitHub's Intel Macs.
+    def server_bind(self):
+        socketserver.TCPServer.server_bind(self)
+        self.server_name, self.server_port = self.server_address[:2]
+
+
+server = Server(("127.0.0.1", 0), BMC)
 server.socket = ctx.wrap_socket(server.socket, server_side=True)
 server.handle_error = lambda request, address: None  # a refused handshake is part of the test
 with open(o.portfile, "w") as f:

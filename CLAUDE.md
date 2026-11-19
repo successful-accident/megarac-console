@@ -37,5 +37,6 @@ Run these before a push. CI runs them on Linux x64 and arm64, macOS arm64 and In
   - `install.sh` is POSIX sh, for FreeBSD's `/bin/sh`.
   - The test scripts are bash, and must also run on macOS's bash 3.2: an empty array under `set -u` is `${a[@]+"${a[@]}"}`.
   - BSD `wc` pads its numbers.
+- **Python's `HTTPServer`** looks its own address up in DNS when it binds (`socket.getfqdn`), which takes about 30 seconds on GitHub's Intel Macs. `fake_bmc.py` overrides `server_bind` to skip it.
 - **The login form** is encoded byte for byte like `curl --data-urlencode`, which sends a space as `+`. The launcher test compares the two.
 - **A negative check needs a positive one before it.** "No token on the viewer's command line" once passed with no viewer running; "kill: viewer started" now guards it.
