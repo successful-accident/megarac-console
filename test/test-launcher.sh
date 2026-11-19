@@ -148,6 +148,7 @@ if [ "$(uname)" = Darwin ]; then
   keychain_has || sed 's/^/    /' "$T/err" # the launcher says why
   launch ""
   check "Keychain: the saved login is used, nothing asked" [ "$RC" = 0 ]
+  [ "$RC" = 0 ] || sed 's/^/    /' "$T/err"
 fi
 
 # ---- The viewer's exit code comes back, and the session is still given back.

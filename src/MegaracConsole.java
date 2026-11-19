@@ -515,10 +515,15 @@ public class MegaracConsole {
 
     static String[] savedLogin() {
         if (MAC) {
+            // The account is in the item's attributes on stdout; with -g, the password is on
+            // stderr. Each is printed as "text", or as 0x and hex when it holds a byte outside
+            // printable ASCII or a backslash (Apple's keychain_utilities.c, print_buffer). -w
+            // would print such a password as bare hex, which can't be told from one of hex digits.
             String found = run(null, "security", "find-generic-password", "-s", service());
-            String pass = run(null, "security", "find-generic-password", "-s", service(), "-w");
-            String user = found == null ? "" : first("\"acct\"<blob>=\"([^\"\\n]*)\"", found, "");
-            return pass == null || user.isEmpty() ? null : new String[] { user, chomp(pass) };
+            String shown = run(null, true, "security", "find-generic-password", "-s", service(), "-g");
+            String user = found == null ? "" : keychainValue(first("\"acct\"<blob>=([^\\n]*)", found, ""));
+            String pass = shown == null ? null : first("(?m)^password: ([^\\n]*)", shown, null);
+            return pass == null || user.isEmpty() ? null : new String[] { user, keychainValue(pass) };
         }
         if (WIN) {
             try {
@@ -532,6 +537,17 @@ public class MegaracConsole {
         }
         String s = run(null, "secret-tool", "lookup", "service", service());
         return s == null || !chomp(s).contains("\n") ? null : chomp(s).split("\n", 2);
+    }
+
+    // A value as security prints it: "text", or 0x, hex, and maybe a quoted rendering.
+    static String keychainValue(String v) {
+        if (v.startsWith("0x")) {
+            String hex = first("^0x([0-9A-Fa-f]*)", v, "");
+            byte[] b = new byte[hex.length() / 2];
+            for (int i = 0; i < b.length; i++) b[i] = (byte) Integer.parseInt(hex.substring(2 * i, 2 * i + 2), 16);
+            return new String(b, UTF_8);
+        }
+        return v.length() >= 2 && v.startsWith("\"") && v.endsWith("\"") ? v.substring(1, v.length() - 1) : "";
     }
 
     static void saveLogin(String[] login) {
@@ -582,8 +598,16 @@ public class MegaracConsole {
 
     // Runs a helper with a 20 s limit; its output, or null if it is missing or fails.
     static String run(String input, String... cmd) {
+        return run(input, false, cmd);
+    }
+
+    // stderr: return what the command prints there, and throw its stdout away instead.
+    static String run(String input, boolean stderr, String... cmd) {
         try {
-            ProcessBuilder pb = new ProcessBuilder(cmd).redirectError(ProcessBuilder.Redirect.to(new File(WIN ? "NUL" : "/dev/null")));
+            ProcessBuilder pb = new ProcessBuilder(cmd);
+            File nul = new File(WIN ? "NUL" : "/dev/null");
+            if (stderr) pb.redirectOutput(nul);
+            else pb.redirectError(nul);
             // Windows PowerShell started from PowerShell 7 inherits 7's module path, then fails to
             // load ConvertTo-SecureString from 7's modules. Without it, it uses its own.
             pb.environment().remove("PSModulePath");
@@ -594,7 +618,7 @@ public class MegaracConsole {
             ByteArrayOutputStream b = new ByteArrayOutputStream();
             Thread reader = new Thread(() -> {
                 try {
-                    copy(p.getInputStream(), b);
+                    copy(stderr ? p.getErrorStream() : p.getInputStream(), b);
                 } catch (IOException ignored) {
                 }
             });
