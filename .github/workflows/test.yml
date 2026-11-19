@@ -25,6 +25,16 @@ jobs:
         with:
           distribution: zulu
           java-version: 8
+      # The runner's own keychain blocks every access, so give the Keychain checks an
+      # unlocked one, as a desktop Mac has.
+      - name: an unlocked keychain
+        if: runner.os == 'macOS'
+        run: |
+          security create-keychain -p ci "$RUNNER_TEMP/ci.keychain-db"
+          security set-keychain-settings "$RUNNER_TEMP/ci.keychain-db"
+          security unlock-keychain -p ci "$RUNNER_TEMP/ci.keychain-db"
+          security list-keychains -d user -s "$RUNNER_TEMP/ci.keychain-db"
+          security default-keychain -d user -s "$RUNNER_TEMP/ci.keychain-db"
       - name: media.c against the recorded replies
         run: test/test-media.sh "$JAVA_HOME"
       - name: the installed launcher against a fake BMC

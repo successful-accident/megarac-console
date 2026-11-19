@@ -135,6 +135,10 @@ check "normal: viewer got exactly the launch file's arguments" diff <(expected_a
 check "normal: viewer loaded all three media libraries" [ "$(grep -c '^LOADED:' "$T/out")" = 3 ]
 check "normal: logged out once" [ "$(requests /rpc/WEBSES/logout.asp)" = 1 ]
 check "normal: no secret in output or log" no_secrets "$T/out" "$T/err" "$LOG"
+if [ "$(uname)" = Darwin ]; then
+  launch ""
+  check "Keychain: the saved login is used, nothing asked" [ "$RC" = 0 ]
+fi
 
 # ---- The viewer's exit code comes back, and the session is still given back.
 start_bmc full
