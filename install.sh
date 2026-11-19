@@ -73,7 +73,10 @@ if [ -z "${MEGARAC_PACKAGE:-}" ] && [ -f "$ROOT/src/MegaracConsole.java" ]; then
     jdk8 "$JAVA_HOME" || die "JAVA_HOME ($JAVA_HOME) is not a Java 8 JDK."
     JH="$JAVA_HOME"
   elif [ "$OS" = Darwin ]; then
-    JH="$(/usr/libexec/java_home -v 1.8 2>/dev/null)" || JH=
+    # java_home -v 1.8 can answer with a newer Java, so check every installed one.
+    for d in "$(/usr/libexec/java_home -v 1.8 2>/dev/null)" /Library/Java/JavaVirtualMachines/*/Contents/Home; do
+      if jdk8 "$d"; then JH="$d" && break; fi
+    done
   else
     for d in /usr/lib/jvm/* /usr/local/openjdk8 /usr/local/zulu8 /opt/*; do
       if jdk8 "$d"; then JH="$d" && break; fi
@@ -115,7 +118,11 @@ if [ -z "${MEGARAC_PACKAGE:-}" ] && [ -f "$ROOT/src/MegaracConsole.java" ]; then
 R="$(cd "$(dirname "$0")/../Resources" && pwd)"
 if [ -n "${MEGARAC_JAVA_HOME:-}" ]; then JH="$MEGARAC_JAVA_HOME"
 elif [ -x "$R/jdk/bin/java" ]; then JH="$R/jdk"
-else JH="$(/usr/libexec/java_home -v 1.8 -a "$(uname -m)" 2>/dev/null || /usr/libexec/java_home -v 1.8 2>/dev/null || echo '@JH@')"
+else
+  # java_home -v 1.8 can answer with a newer Java; only Java 8 has rt.jar.
+  for JH in "$(/usr/libexec/java_home -v 1.8 -a "$(uname -m)" 2>/dev/null)" /Library/Java/JavaVirtualMachines/*/Contents/Home '@JH@'; do
+    [ ! -f "$JH/jre/lib/rt.jar" ] || break
+  done
 fi
 [ -x "$JH/bin/java" ] || {
   osascript -e 'display alert "MegaRAC Console" message "Java 8 is not installed. Install it with: brew install --cask zulu@8" as critical' >/dev/null 2>&1
